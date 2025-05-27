@@ -28,7 +28,7 @@ npm start
 👨‍💻 Autor
 Feito com 💙 por Thomas Jeferson
 
-.[LinkedIn](www.linkedin.com/in/thomasjefersonsilva)
+[LinkedIn](https://www.linkedin.com/in/thomasjefersonsilva)
 
 [GitHub](https://github.com/thomasnxs)
 
