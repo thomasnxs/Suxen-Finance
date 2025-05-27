@@ -24,7 +24,7 @@ npm install
 
 # Rode o app
 npm start
-
+```
 👨‍💻 Autor
 Feito com 💙 por Thomas Jeferson
 
