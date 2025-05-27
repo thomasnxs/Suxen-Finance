@@ -1,61 +1,63 @@
 ---
 
-# 🚀 Suxen Finance
+````markdown
+# Suxen Finance
 
-Esse é o **Suxen Finance**!
-Um projeto que nasceu pra simplificar a organização das tuas finanças, focando na praticidade e numa experiência intuitiva.
+Esse é o **Suxen Finance**! 🚀  
+Um app de finanças que nasceu da ideia de criar algo simples, funcional e bonito, pra te ajudar a organizar tuas finanças pessoais no dia a dia.
 
-A ideia é ajudar qualquer pessoa a visualizar, controlar e evoluir financeiramente, sem complicação.
+## 📱 Sobre o projeto
 
-## ✅ Funcionalidades
+- App mobile feito com **React Native**.
+- Controle de entradas e saídas.
+- Visualização clara e rápida das movimentações financeiras.
+- Layout clean, minimalista e intuitivo.
 
-* Registro de entradas e saídas.
-* Visualização do saldo.
-* Dashboard simples e direto.
-* Foco na organização e evolução pessoal.
+## 🚀 Tecnologias
 
-## ⚙️ Tecnologias
+- React Native
+- Expo
+- Styled Components
 
-* React Native
-* Expo
-* TypeScript
-* Styled Components
-
-## 💻 Como rodar o projeto
+## 💻 Como rodar
 
 1. Clone o repositório:
 
-   ```bash
-   git clone https://github.com/thomasnxs/Suxen-Finance.git
-   ```
-2. Acesse a pasta:
+```bash
+git clone https://github.com/thomasnxs/Suxen-Finance.git
+````
 
-   ```bash
-   cd Suxen-Finance
-   ```
-3. Instale as dependências:
+2. Instale as dependências:
 
-   ```bash
-   npm install
-   ```
-4. Rode a aplicação:
+```bash
+cd Suxen-Finance
+npm install
+```
 
-   ```bash
-   npm start
-   ```
+3. Rode o projeto:
 
-## 🤝 Contribuindo
+```bash
+npm start
+```
 
-Se quiser dar uma força ou sugerir melhorias, fica à vontade!
-Abre uma issue ou faz um pull request. Bora construir junto!
+ou com o Expo:
 
-## 📫 Contato
+```bash
+npx expo start
+```
 
-* [LinkedIn](https://www.linkedin.com/in/thomasjefersonsilva)
-* [GitHub](https://github.com/thomasnxs)
+## 🙋‍♂️ Autor
+
+Feito com muito carinho por [Thomas Jeferson](https://www.linkedin.com/in/thomasjefersonsilva) ❤️
+
+* GitHub: [@thomasnxs](https://github.com/thomasnxs)
+
+Se curtir ou quiser trocar uma ideia, me chama!
+
+---
+
+```
 
 ---
 
-Feito com 💙 por **Thomas Jeferson**.
-
----
+```
