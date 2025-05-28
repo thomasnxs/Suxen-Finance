@@ -2,7 +2,7 @@
 import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ThemeColors } from '../constants/colors'; // A interface ThemeColors agora inclui separatorLine
+import { ThemeColors } from '../constants/colors'; // Certifique-se que ThemeColors tem separatorLine
 import { useTheme } from '../contexts/ThemeContext';
 import { Transaction } from '../types';
 
@@ -25,7 +25,7 @@ const getItemBackgroundColor = (transaction: Transaction, colors: ThemeColors): 
     }
     return colors.dangerTransparent; 
   }
-  return colors.card;
+  return colors.card; // Cor de fallback
 };
 
 const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
@@ -48,30 +48,31 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   },
   itemContainer: {
     flexDirection: 'row',        
-    alignItems: 'center',       
-    paddingVertical: 40,        
-    paddingHorizontal: 15, // Levemente aumentado para dar mais espaço interno      
+    alignItems: 'center', // Crucial para alinhar verticalmente todos os filhos
+    paddingVertical: 18, // Padding para dar altura ao item e centralizar conteúdo de uma linha
+    paddingHorizontal: 15,     
   },
   descriptionText: {            
     fontSize: 15,               
     fontWeight: '500',          
     color: colors.text,
-    flexGrow: 1, // Permite que a descrição cresça para preencher o espaço
-    flexShrink: 1, // Permite que a descrição encolha se necessário
-    // marginRight não é mais necessário aqui, o separador terá marginHorizontal
+    flexGrow: 1, // Permite que a descrição cresça
+    flexShrink: 1, // Permite que a descrição encolha e quebre linha
+    // marginRight é controlado pelo separador
   },
   separatorText: {
-    fontSize: 18,
-    color: colors.separatorLine, // USANDO A NOVA COR DO TEMA
-    marginHorizontal: 10,       // Espaçamento consistente para os separadores
+    fontSize: 18, // Tamanho do separador
+    color: colors.separatorLine, // Cor sutil do tema para o separador
+    marginHorizontal: 10, // Espaçamento em volta do separador
   },
   amountText: {                  
     fontSize: 16,               
     fontWeight: 'bold',
-    // marginHorizontal não é mais necessário, o separador já tem
+    // A cor será aplicada dinamicamente
+    // Não precisa de marginHorizontal aqui, pois os separadores cuidam disso
   },
   arrowIcon: {
-    // Não precisa de margem específica, o último separador já tem marginHorizontal
+    // Se precisar de um pequeno ajuste de posição, pode adicionar margens leves aqui
   },
   dangerColor: { color: colors.danger },
   successColor: { color: colors.success },
@@ -109,7 +110,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, onOpenDetailMod
         <View style={styles.itemContainer}>
           <Text 
               style={styles.descriptionText} 
-              // numberOfLines e ellipsizeMode removidos para permitir quebra de linha
+              // numberOfLines e ellipsizeMode removidos para permitir quebra de linha automática
             > 
                 {displayDescription}
             </Text>
@@ -120,7 +121,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, onOpenDetailMod
             <Text style={styles.separatorText}>|</Text>
             <FontAwesome 
               name={arrowName} 
-              size={20} 
+              size={20} // Tamanho da seta ajustado
               color={iconAndTextColor} 
               style={styles.arrowIcon} 
             />
