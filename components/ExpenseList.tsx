@@ -1,169 +1,149 @@
 // GastosApp/components/ExpenseList.tsx
+import { FontAwesome } from '@expo/vector-icons';
 import React from 'react';
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { ThemeColors } from '../constants/colors';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ThemeColors } from '../constants/colors'; // A interface ThemeColors agora inclui separatorLine
 import { useTheme } from '../contexts/ThemeContext';
 import { Transaction } from '../types';
 
 interface ExpenseListProps {
-  transactions: Transaction[];
-  onDeleteTransaction: (id: string) => void;
-  headerContent?: React.ReactNode;
+  transactions: Transaction[];
+  onOpenDetailModal: (transaction: Transaction) => void; 
+  headerContent?: React.ReactNode;
 }
 
+const getItemBackgroundColor = (transaction: Transaction, colors: ThemeColors): string => {
+  if (transaction.type === 'income') {
+    return colors.successTransparent;
+  }
+  if (transaction.type === 'investment') {
+    return colors.investedTransparent;
+  }
+  if (transaction.type === 'expense') {
+    if (transaction.paymentMethod === 'cartao') {
+      return colors.primaryTransparent; 
+    }
+    return colors.dangerTransparent; 
+  }
+  return colors.card;
+};
+
 const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
-  listScreenContainer: {
-    flex: 1,
-  },
-  flatListContentContainer: {
-    paddingBottom: 20,
-    flexGrow: 1,
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    borderRadius: 8,
-    marginBottom: 8,
+  listScreenContainer: {
+    flex: 1,
+  },
+  flatListContentContainer: {
+    paddingBottom: 20,
+    flexGrow: 1,
+  },
+  itemTouchable: {
+    borderRadius: 10,
+    marginBottom: 10, 
     marginHorizontal: 15,
-    shadowColor: isDark ? '#000' : '#666',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: isDark ? 0.3 : 0.2,
-    shadowRadius: isDark ? 2 : 1.5,
-    elevation: isDark ? 3 : 2,
+    shadowColor: isDark ? '#000' : '#333',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDark ? 0.3 : 0.1,
+    shadowRadius: isDark ? 4 : 2.5,
+    elevation: isDark ? 4 : 3,
   },
-  itemInfo: {
-    flex: 1,
+  itemContainer: {
+    flexDirection: 'row',        
+    alignItems: 'center',       
+    paddingVertical: 40,        
+    paddingHorizontal: 15, // Levemente aumentado para dar mais espaço interno      
+  },
+  descriptionText: {            
+    fontSize: 15,               
+    fontWeight: '500',          
+    color: colors.text,
+    flexGrow: 1, // Permite que a descrição cresça para preencher o espaço
+    flexShrink: 1, // Permite que a descrição encolha se necessário
+    // marginRight não é mais necessário aqui, o separador terá marginHorizontal
+  },
+  separatorText: {
+    fontSize: 18,
+    color: colors.separatorLine, // USANDO A NOVA COR DO TEMA
+    marginHorizontal: 10,       // Espaçamento consistente para os separadores
   },
-  description: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    flexShrink: 1,
+  amountText: {                  
+    fontSize: 16,               
+    fontWeight: 'bold',
+    // marginHorizontal não é mais necessário, o separador já tem
+  },
+  arrowIcon: {
+    // Não precisa de margem específica, o último separador já tem marginHorizontal
   },
-  notes: {
-    fontSize: 13,
-    color: colors.secondaryText,
-    fontStyle: 'italic',
-    marginTop: 3,
-    marginLeft: 2,
-    flexShrink: 1,
-  },
-  date: {
-    fontSize: 12,
-    color: colors.secondaryText,
-    marginTop: 4,
-  },
-  itemAmountPayment: {
-    alignItems: 'flex-end',
-    marginHorizontal:10,
-  },
-  amount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  debitAmount: { color: colors.danger },
-  creditAmount: { color: colors.warning },
-  incomeAmount: { color: colors.success },
-  investmentAmount: { color: colors.invested },
-  paymentMethod: {
-    fontSize: 12,
-    color: colors.secondaryText,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    marginTop: 30,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: colors.secondaryText,
-    textAlign: 'center',
-  },
-  deleteButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  deleteButtonText: {
-    fontSize: 20,
-    color: colors.danger,
-  },
+  dangerColor: { color: colors.danger },
+  successColor: { color: colors.success },
+  investedColor: { color: colors.invested },
+
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, marginTop: 30, },
+  emptyText: { fontSize: 16, color: colors.secondaryText, textAlign: 'center', },
 });
 
-const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, onDeleteTransaction, headerContent }) => {
-  const { colors, isDark } = useTheme();
-  const styles = getStyles(colors, isDark);
+const ExpenseList: React.FC<ExpenseListProps> = ({ transactions, onOpenDetailModal, headerContent }) => {
+  const { colors, isDark } = useTheme();
+  const styles = getStyles(colors, isDark);
 
-  const getTransactionStyleBasedOnTheme = (transaction: Transaction) => {
-    if (transaction.type === 'income') return styles.incomeAmount;
-    if (transaction.type === 'investment') return styles.investmentAmount;
-    return transaction.paymentMethod === 'cartao' ? styles.creditAmount : styles.debitAmount;
-  };
+  const getTransactionVisuals = (transaction: Transaction): { color: string; arrow: 'arrow-up' | 'arrow-down' } => {
+    if (transaction.type === 'income') {
+      return { color: styles.successColor.color, arrow: 'arrow-down' }; // ENTRADA: Verde, Seta para BAIXO
+    }
+    if (transaction.type === 'investment') {
+      return { color: styles.investedColor.color, arrow: 'arrow-up' };   // INVESTIMENTO: Cor de investimento, Seta para CIMA
+    }
+    // DESPESA (incluindo pagamento de fatura): Vermelho, Seta para CIMA
+    return { color: styles.dangerColor.color, arrow: 'arrow-up' }; 
+  };
 
-  const getPaymentMethodText = (transaction: Transaction) => {
-    if (transaction.type === 'income') return '(Entrada)';
-    if (transaction.type === 'investment') return '(Para Investimento)';
-    return transaction.paymentMethod === 'saldo' ? '(Débito/Conta)' : '(Crédito)';
-  };
-
-  const handleDelete = (id: string, description: string) => {
-    Alert.alert(
-      "Confirmar Exclusão",
-      `Tem certeza que deseja excluir a transação "${description}"?`,
-      [{ text: "Cancelar", style: "cancel", onPress: () => {} },
-       { text: "Excluir", style: "destructive", onPress: () => onDeleteTransaction(id) }]
+  const renderItem = ({ item }: { item: Transaction }) => {
+    const { color: iconAndTextColor, arrow: arrowName } = getTransactionVisuals(item);
+    const itemBackgroundColor = getItemBackgroundColor(item, colors);
+    const displayDescription = item.category === "Pagamento de Fatura CC" ? "Pagamento Fatura CC" : item.description;
+    
+    return (
+    <TouchableOpacity 
+        style={[styles.itemTouchable, { backgroundColor: itemBackgroundColor }]} 
+        onPress={() => onOpenDetailModal(item)}
+    >
+        <View style={styles.itemContainer}>
+          <Text 
+              style={styles.descriptionText} 
+              // numberOfLines e ellipsizeMode removidos para permitir quebra de linha
+            > 
+                {displayDescription}
+            </Text>
+            <Text style={styles.separatorText}>|</Text>
+          <Text style={[styles.amountText, { color: iconAndTextColor }]}>
+            R$ {item.amount.toFixed(2).replace('.', ',')}
+          </Text>
+            <Text style={styles.separatorText}>|</Text>
+            <FontAwesome 
+              name={arrowName} 
+              size={20} 
+              color={iconAndTextColor} 
+              style={styles.arrowIcon} 
+            />
+        </View>
+    </TouchableOpacity>
     );
-  }
+  };
 
-  const renderItem = ({ item }: { item: Transaction }) => (
-    <View style={styles.itemContainer}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.description}>{item.description}</Text>
-        {item.notes ? (<Text style={styles.notes}>{item.notes}</Text>) : null}
-        <Text style={styles.date}>
-          {new Date(item.date).toLocaleDateString('pt-BR')} - {new Date(item.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
-        </Text>
-      </View>
-      <View style={styles.itemAmountPayment}>
-        <Text style={[styles.amount, getTransactionStyleBasedOnTheme(item)]}>
-          {item.type === 'income' ? '+ ' : (item.type === 'expense' || item.type === 'investment' ? '- ' : '')}
-          R$ {item.amount.toFixed(2).replace('.', ',')}
-        </Text>
-        <Text style={styles.paymentMethod}>{getPaymentMethodText(item)}</Text>
-      </View>
-      <TouchableOpacity onPress={() => handleDelete(item.id, item.description)} style={styles.deleteButton}>
-        <Text style={styles.deleteButtonText}>🗑️</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const ListEmptyComponent = () => ( <View style={styles.emptyContainer}><Text style={styles.emptyText}>Nenhuma transação registrada ainda. 🚀</Text></View>);
 
-  const ListEmptyComponent = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>Nenhuma transação registrada ainda. 🚀</Text>
-    </View>
-  );
-
-  return (
-    <View style={styles.listScreenContainer}>
-      {/* O título do histórico de transações foi movido para o listHeader em app/index.tsx */}
-      <FlatList
-        data={[...transactions].reverse()}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        ListHeaderComponent={<>{headerContent}</>}
-        ListEmptyComponent={ListEmptyComponent}
-        contentContainerStyle={styles.flatListContentContainer}
-        keyboardShouldPersistTaps="handled"
-      />
-    </View>
-  );
+  return (
+    <View style={styles.listScreenContainer}>
+      <FlatList
+        data={transactions} 
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        ListHeaderComponent={<>{headerContent}</>}
+        ListEmptyComponent={ListEmptyComponent}
+        contentContainerStyle={styles.flatListContentContainer}
+        keyboardShouldPersistTaps="handled"
+      />
+    </View>
+  );
 };
 
 export default ExpenseList;
