@@ -2,11 +2,20 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ThemeProvider, useTheme } from '../contexts/ThemeContext'; // Ajustado para o caminho correto se seu context estiver em /app
+import { InitialDataProvider } from '../contexts/InitialDataContext'; // Supondo que useInitialData é exportado
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 
-// Componente interno para acessar o tema para o Stack
+// SplashScreen.preventAutoHideAsync(); // Movido para app/index.tsx para melhor controle
+
 function RootStackLayout() {
   const { colors } = useTheme();
+  // const { isLoadingData } = useInitialData(); // Exemplo se precisasse esperar dados do context
+
+  // useEffect(() => {
+  //   if (!isLoadingData) { // Exemplo: Esconder splash screen após dados do context carregarem
+  //     SplashScreen.hideAsync();
+  //   }
+  // }, [isLoadingData]);
 
   return (
     <Stack
@@ -17,23 +26,31 @@ function RootStackLayout() {
       }}
     >
       <Stack.Screen
-        name="(tabs)" // Aponta para a pasta app/(tabs) e seu _layout.tsx
+        name="welcome" // Tela de Boas-Vindas
+        options={{
+          headerShown: false, // A tela de welcome gerencia seu próprio header ou não tem
+        }}
+      />
+      <Stack.Screen
+        name="(tabs)" // Nosso grupo de abas
         options={{
           title: 'Nome do App', 
           headerShown: true, 
         }}
       />
-      {/* Outras telas de Stack globais (ex: modais) podem ser adicionadas aqui */}
+      {/* Outras telas globais ou modais podem ser adicionadas aqui */}
     </Stack>
   );
 }
 
 export default function RootLayout() {
   return (
-    <ThemeProvider> 
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <RootStackLayout />
-      </GestureHandlerRootView>
+    <ThemeProvider>
+      <InitialDataProvider> 
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <RootStackLayout />
+        </GestureHandlerRootView>
+      </InitialDataProvider>
     </ThemeProvider>
   );
 }

@@ -1,58 +1,48 @@
 // GastosApp/app/(tabs)/home.tsx
+import { FontAwesome } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { LinearGradient } from 'expo-linear-gradient'; // Comentado pois GradientButton já usa
 import { useNavigation } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator, Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Modal as RNModal,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput, // Mantido para os botões no headerControlsContainer
-    View
+  ActivityIndicator, Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Modal as RNModal,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet, // Ainda importado, pode ser usado por algum componente que você mantenha ou se o tema voltar para cá
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
-// Caminhos de importação ajustados para ../../
+import AddExpenseModal from '../../components/AddExpenseModal'; // Importado o novo modal de gasto
 import BalanceDisplay from '../../components/BalanceDisplay';
-import ExpenseForm from '../../components/ExpenseForm';
 import ExpenseList from '../../components/ExpenseList';
 import GradientButton from '../../components/GradientButton';
-import InitialSetupModal from '../../components/InitialSetupModal';
+// InitialSetupModal não é mais renderizado/controlado aqui
 import TransactionDetailModal from '../../components/TransactionDetailModal';
 import { ThemeColors } from '../../constants/colors';
 import { ExpenseCategory } from '../../constants/commonExpenses';
+import { InitialDataContextType, useInitialData } from '../../contexts/InitialDataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
-    loadCreditCardBill,
-    loadCreditCardLimit,
-    loadInitialAccountBalance,
-    loadTotalInvested,
-    loadTransactions,
-    saveCreditCardBill,
-    saveCreditCardLimit,
-    saveInitialAccountBalance,
-    saveTotalInvested,
-    saveTransactions
+  loadTransactions,
+  saveCreditCardBill,
+  saveTransactions
 } from '../../services/storage';
 import { Transaction } from '../../types';
 
 
 const IOS_HEADER_OFFSET = 64;
 
-const ASYNC_STORAGE_KEYS_TO_CLEAR = [
-  '@GastosApp:initialAccountBalance',
+const ASYNC_STORAGE_KEYS_TO_CLEAR_DEV_HOME = [
   '@GastosApp:transactions',
-  '@GastosApp:creditCardBill',
-  '@GastosApp:totalInvested',
-  '@GastosApp:creditCardLimit',
-  '@SuxenFinance:theme'
+  '@SuxenFinance:theme',
 ];
 
+// AddIncomeModal (usa GradientButton)
 const AddIncomeModal: React.FC<{visible: boolean, onClose: () => void, onAddIncome: (amount: number, description: string) => void}> =
  ({visible, onClose, onAddIncome}) => {
   const { colors } = useTheme();
@@ -60,11 +50,11 @@ const AddIncomeModal: React.FC<{visible: boolean, onClose: () => void, onAddInco
   const [description, setDescription] = useState('');
 
   const handleAmountChange = (text: string) => {
-    let cleanedText = text.replace(/[^0-9.,]/g, '');
+    let cleanedText = text.replace(/[^0-9.,]/g, ''); 
     const parts = cleanedText.split(/[.,]/);
     if (parts.length > 1) {
       const integerPart = parts[0];
-      let decimalPart = parts.slice(1).join('');
+      let decimalPart = parts.slice(1).join(''); 
       if (decimalPart.length > 2) {
         decimalPart = decimalPart.substring(0, 2);
       }
@@ -88,7 +78,7 @@ const AddIncomeModal: React.FC<{visible: boolean, onClose: () => void, onAddInco
     }
   };
 
-  const themedModalStyles = getModalStyles(colors); // Esta função DEVE estar definida no final do arquivo
+  const themedModalStyles = getModalStyles(colors);
   return (
     <RNModal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={themedModalStyles.keyboardAvoidingContainer} >
@@ -117,67 +107,82 @@ const AddIncomeModal: React.FC<{visible: boolean, onClose: () => void, onAddInco
 
 
 export default function HomeScreen() {
-  const { colors, theme, toggleTheme, isDark, setTheme } = useTheme();
-  const [initialAccountBalance, setInitialAccountBalance] = useState<number>(0);
+  const { colors, isDark } = useTheme(); 
+  const { 
+    initialAccountBalance, 
+    totalInvested, 
+    creditCardLimit, 
+    creditCardBill: initialCreditCardBill, 
+    isLoadingData: isLoadingInitialData,
+    updateTotalInvestedOnly 
+  } = useInitialData() as InitialDataContextType; 
+
   const [currentBalance, setCurrentBalance] = useState<number>(0);
-  const [creditCardBill, setCreditCardBill] = useState<number>(0);
-  const [totalInvested, setTotalInvested] = useState<number>(0);
-  const [creditCardLimit, setCreditCardLimit] = useState<number>(0);
+  const [currentCreditCardBill, setCurrentCreditCardBill] = useState<number>(0); 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isInitialSetupModalVisible, setIsInitialSetupModalVisible] = useState<boolean>(false);
   const [isAddIncomeModalVisible, setIsAddIncomeModalVisible] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAddExpenseModalVisible, setIsAddExpenseModalVisible] = useState<boolean>(false); // Estado para o novo modal de despesa
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState<boolean>(true);
   const [selectedTransactionForDetail, setSelectedTransactionForDetail] = useState<Transaction | null>(null);
   const [isTransactionDetailModalVisible, setIsTransactionDetailModalVisible] = useState<boolean>(false);
+  const [showActionButtons, setShowActionButtons] = useState(false);
 
   const navigation = useNavigation();
 
   useEffect(() => {
     navigation.getParent()?.setOptions({ 
-      title: "Nome do App", 
-      headerTitleAlign: 'center', 
       headerStyle: { backgroundColor: colors.headerBackground },
       headerTintColor: colors.headerText,
-      headerLeft: () => null, 
-      headerRight: () => null,
+      headerLeft: () => null, 
+      headerRight: () => null,
     });
-  }, [navigation, colors, theme]); 
+  }, [navigation, colors]); 
 
   useEffect(() => {
     const clearDevelopmentData = async () => {
       if (__DEV__) {
-        console.log("DEV: Limpando dados do AsyncStorage ao iniciar...");
+        console.log("DEV HOME: Limpando chaves (transações, tema) do AsyncStorage...");
         try {
-          for (const key of ASYNC_STORAGE_KEYS_TO_CLEAR) {
+          for (const key of ASYNC_STORAGE_KEYS_TO_CLEAR_DEV_HOME) {
             await AsyncStorage.removeItem(key);
           }
         } catch (error) {
-          console.error("DEV: Erro ao limpar AsyncStorage:", error);
+          console.error("DEV HOME: Erro ao limpar AsyncStorage:", error);
         }
       }
     };
 
-    const loadAllData = async () => {
-      setIsLoading(true);
+    const loadScreenData = async () => {
+      if (isLoadingInitialData) {
+        console.log("HomeScreen: Aguardando dados iniciais do contexto...");
+        return; 
+      }
+      setIsLoadingTransactions(true);
+      console.log("HomeScreen: Carregando dados da tela. Dados Iniciais Prontos:", {initialAccountBalance, initialCreditCardBill, totalInvested, creditCardLimit});
       try {
         await clearDevelopmentData();
-        const loadedInitialBalance = await loadInitialAccountBalance();
+
         const loadedTransactions = await loadTransactions();
-        const loadedCreditCardBill = await loadCreditCardBill();
-        const loadedTotalInvested = await loadTotalInvested();
-        const loadedCreditCardLimit = await loadCreditCardLimit();
-
-        setInitialAccountBalance(loadedInitialBalance);
         setTransactions(loadedTransactions);
-        setCreditCardBill(loadedCreditCardBill);
-        setTotalInvested(loadedTotalInvested);
-        setCreditCardLimit(loadedCreditCardLimit);
+        
+        let runningBill = initialCreditCardBill; 
+        loadedTransactions.forEach(tr => {
+          if (tr.type === 'expense' && tr.paymentMethod === 'cartao' && tr.category !== "Pagamento de Fatura CC") {
+            runningBill += tr.amount;
+          } else if (tr.category === "Pagamento de Fatura CC") {
+            runningBill -= tr.amount;
+          }
+        });
+        setCurrentCreditCardBill(runningBill < 0 ? 0 : runningBill);
+        await saveCreditCardBill(runningBill < 0 ? 0 : runningBill);
 
-        let newCurrentBalance = loadedInitialBalance;
+        let newCurrentBalance = initialAccountBalance;
         loadedTransactions.forEach(tr => {
           if (tr.type === 'income') {
             newCurrentBalance += tr.amount;
-          } else if (tr.type === 'expense' && tr.category !== "Pagamento de Fatura CC" && tr.paymentMethod === 'saldo') { 
+          } else if (tr.category === "Pagamento de Fatura CC" && tr.paymentMethod === 'saldo') {
+            newCurrentBalance -= tr.amount; 
+          } else if (tr.type === 'expense' && tr.paymentMethod === 'saldo') { 
             newCurrentBalance -= tr.amount;
           } else if (tr.type === 'investment' && tr.paymentMethod === 'para_investimento') {
             newCurrentBalance -= tr.amount;
@@ -185,33 +190,23 @@ export default function HomeScreen() {
         });
         setCurrentBalance(newCurrentBalance);
 
-        if (loadedInitialBalance === 0 && loadedTransactions.length === 0 && loadedTotalInvested === 0 && loadedCreditCardLimit === 0 && !isInitialSetupModalVisible) {
-          setTimeout(() => setIsInitialSetupModalVisible(true), 200);
-        }
       } catch (error) {
-        console.error("Falha ao carregar dados:", error);
+        console.error("HomeScreen: Falha ao carregar dados da tela:", error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingTransactions(false);
+        console.log("HomeScreen: Carregamento de dados da tela finalizado.");
       }
     };
-    loadAllData();
-  }, [setTheme]);
+    loadScreenData();
+  }, [isLoadingInitialData, initialAccountBalance, initialCreditCardBill]);
 
 
-  useEffect(() => { if (!isLoading && initialAccountBalance !== undefined) saveInitialAccountBalance(initialAccountBalance); }, [initialAccountBalance, isLoading]);
-  useEffect(() => { if (!isLoading && transactions !== undefined) saveTransactions(transactions); }, [transactions, isLoading]);
-  useEffect(() => { if (!isLoading && creditCardBill !== undefined) saveCreditCardBill(creditCardBill); }, [creditCardBill, isLoading]);
-  useEffect(() => { if (!isLoading && totalInvested !== undefined) saveTotalInvested(totalInvested); }, [totalInvested, isLoading]);
-  useEffect(() => { if (!isLoading && creditCardLimit !== undefined) saveCreditCardLimit(creditCardLimit); }, [creditCardLimit, isLoading]);
+  useEffect(() => { 
+    if (!isLoadingTransactions && !isLoadingInitialData) {
+      saveTransactions(transactions); 
+    }
+  }, [transactions, isLoadingTransactions, isLoadingInitialData]);
 
-  const handleInitialSetup = (data: { balance: number; invested: number; limit: number; initialBill: number }) => {
-    setInitialAccountBalance(data.balance);
-    setTotalInvested(data.invested);
-    setCreditCardLimit(data.limit);
-    setCreditCardBill(data.initialBill);
-    setCurrentBalance(data.balance); 
-    setIsInitialSetupModalVisible(false);
-  };
 
   const handleAddIncome = (amount: number, description: string) => {
     const newIncome: Transaction = {
@@ -222,84 +217,86 @@ export default function HomeScreen() {
     setCurrentBalance(prev => prev + amount);
   };
 
-  type AddTransactionData = Omit<Transaction, 'id' | 'date' | 'type'> & { categoryDetails?: ExpenseCategory; notes?: string };
-  const handleAddTransaction = (transactionData: AddTransactionData) => {
-    const isInvestment = transactionData.categoryDetails?.type === 'investment';
-    const isCreditCardPayment = transactionData.categoryDetails?.type === 'cc_payment';
+  // Nova função para adicionar despesa (vinda do AddExpenseModal)
+  type AddExpenseModalData = Omit<Transaction, 'id' | 'date' | 'type' | 'paymentMethod'> & { categoryDetails?: ExpenseCategory, paymentMethodSelection: 'saldo' | 'cartao' };
+  const handleAddExpense = async (data: AddExpenseModalData) => {
+    const newExpense: Transaction = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      date: new Date().toISOString(),
+      description: data.description,
+      amount: data.amount,
+      type: 'expense', // Tipo é sempre 'expense'
+      paymentMethod: data.paymentMethodSelection,
+      category: data.categoryDetails?.name,
+      notes: data.notes,
+    };
+    
+    setTransactions(prev => [newExpense, ...prev]);
+
+    if (newExpense.paymentMethod === 'saldo') {
+      setCurrentBalance(prev => prev - newExpense.amount);
+    } else if (newExpense.paymentMethod === 'cartao') {
+      const newBill = currentCreditCardBill + newExpense.amount;
+      setCurrentCreditCardBill(newBill);
+      await saveCreditCardBill(newBill);
+    }
+    setIsAddExpenseModalVisible(false); // Fecha o modal de despesa
+  };
+
+  // handleAddTransaction: ajustada para ser chamada principalmente por investimentos ou pagamentos de fatura (se reintegrado)
+  type AddTransactionData = Omit<Transaction, 'id' | 'date' | 'type'> & { categoryDetails?: ExpenseCategory; notes?: string };
+  const handleAddTransaction = async (transactionData: AddTransactionData, isInvestmentFromFab: boolean = false) => {
+    const isInvestmentCategory = transactionData.categoryDetails?.type === 'investment';
+    const isCreditCardPayment = transactionData.categoryDetails?.type === 'cc_payment'; // Lógica de Pagamento de Fatura CC mantida aqui
+    
+    let transactionType: Transaction['type'] = 'expense'; // Default para despesa
+    if (isInvestmentFromFab || isInvestmentCategory) {
+        transactionType = 'investment';
+    }
+    // Se for cc_payment, o tipo ainda é 'expense', mas com tratamento especial de paymentMethod e lógica de saldo/fatura
+
     const newTransaction: Transaction = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       date: new Date().toISOString(),
       description: transactionData.description,
       amount: transactionData.amount,
-      type: isInvestment ? 'investment' : 'expense',
-      paymentMethod: isCreditCardPayment ? 'saldo' : (isInvestment ? 'para_investimento' : transactionData.paymentMethod),
-      category: transactionData.categoryDetails?.name,
+      type: transactionType,
+      paymentMethod: isCreditCardPayment 
+                       ? 'saldo' 
+                       : ( (isInvestmentFromFab || isInvestmentCategory) 
+                           ? 'para_investimento' 
+                           : transactionData.paymentMethod!), // Non-null assertion se transactionData.paymentMethod é esperado aqui
+      category: transactionData.categoryDetails?.name || 
+                  (isInvestmentFromFab ? "Investimento (App)" : 
+                  (isCreditCardPayment ? "Pagamento de Fatura CC" : transactionData.description)),
       notes: transactionData.notes,
     };
-    setTransactions(prev => [newTransaction, ...prev]);
-    if (isInvestment) {
+    
+    setTransactions(prev => [newTransaction, ...prev]);
+
+    if (newTransaction.type === 'investment') {
       if (newTransaction.paymentMethod === 'para_investimento') {
         setCurrentBalance(prev => prev - newTransaction.amount);
-        setTotalInvested(prev => prev + newTransaction.amount);
+        const newTotalInvested = totalInvested + newTransaction.amount;
+        await updateTotalInvestedOnly(newTotalInvested); 
       }
-    } else if (isCreditCardPayment) {
-      setCurrentBalance(prev => prev - newTransaction.amount);
-      setCreditCardBill(prev => prev - newTransaction.amount);
-    } else {
-      if (newTransaction.paymentMethod === 'saldo') {
-        setCurrentBalance(prev => prev - newTransaction.amount);
-      } else if (newTransaction.paymentMethod === 'cartao') {
-        setCreditCardBill(prev => prev + newTransaction.amount);
-      }
-    }
+    } else if (isCreditCardPayment) { // Transação do tipo 'expense', categoria 'Pagamento de Fatura CC'
+      setCurrentBalance(prev => prev - newTransaction.amount); // Deduz do saldo
+      const newBill = currentCreditCardBill - newTransaction.amount; // Reduz a fatura
+      setCurrentCreditCardBill(newBill < 0 ? 0 : newBill);
+      await saveCreditCardBill(newBill < 0 ? 0 : newBill); 
+    } 
+    // A lógica para despesas normais (não investimento, não pagamento de fatura) foi movida para handleAddExpense
   };
 
-  const handleDeleteTransaction = (transactionId: string) => {
+  const handleDeleteTransaction = async (transactionId: string) => {
     const transactionToDelete = transactions.find(tr => tr.id === transactionId);
     if (!transactionToDelete) {
         console.warn("Deleção: Transação não encontrada com ID:", transactionId);
         Alert.alert("Erro", "Não foi possível encontrar a transação para excluir.");
         return;
     }
-    Alert.alert(
-        "Confirmar Exclusão",
-        `Tem certeza que deseja excluir a transação "${transactionToDelete.description}"?`,
-        [
-            { text: "Cancelar", style: "cancel" },
-            {
-                text: "Excluir",
-                style: "destructive",
-                onPress: () => {
-                    console.log("EXCLUINDO:", transactionToDelete.id); 
-                    setTransactions(prevTransactions => 
-                        prevTransactions.filter(tr => tr.id !== transactionToDelete.id)
-                    );
-                    if (transactionToDelete.type === 'income') {
-                        setCurrentBalance(prev => prev - transactionToDelete.amount);
-                    } else if (transactionToDelete.category === "Pagamento de Fatura CC" && transactionToDelete.type === 'expense') {
-                        setCurrentBalance(prev => prev + transactionToDelete.amount);
-                        setCreditCardBill(prev => prev + transactionToDelete.amount);
-                    } else if (transactionToDelete.type === 'expense') {
-                        if (transactionToDelete.paymentMethod === 'saldo') {
-                            setCurrentBalance(prev => prev + transactionToDelete.amount);
-                        } else if (transactionToDelete.paymentMethod === 'cartao') {
-                            setCreditCardBill(prev => prev - transactionToDelete.amount);
-                        }
-                    } else if (transactionToDelete.type === 'investment') {
-                        if (transactionToDelete.paymentMethod === 'para_investimento') {
-                            setCurrentBalance(prev => prev + transactionToDelete.amount);
-                            setTotalInvested(prev => prev - transactionToDelete.amount);
-                        }
-                    }
-                    if (isTransactionDetailModalVisible) {
-                        setIsTransactionDetailModalVisible(false);
-                        setSelectedTransactionForDetail(null);
-                    }
-                }
-            }
-        ],
-        { cancelable: true }
-    );
+    Alert.alert( "Confirmar Exclusão", `Tem certeza que deseja excluir a transação "${transactionToDelete.description}"?`, [ { text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: async () => { setTransactions(prevTransactions => prevTransactions.filter(tr => tr.id !== transactionToDelete.id) ); let billNeedsUpdate = false; let newBill = currentCreditCardBill; if (transactionToDelete.type === 'income') { setCurrentBalance(prev => prev - transactionToDelete.amount); } else if (transactionToDelete.category === "Pagamento de Fatura CC" && transactionToDelete.type === 'expense') { setCurrentBalance(prev => prev + transactionToDelete.amount); newBill = currentCreditCardBill + transactionToDelete.amount; billNeedsUpdate = true; } else if (transactionToDelete.type === 'expense') { if (transactionToDelete.paymentMethod === 'saldo') { setCurrentBalance(prev => prev + transactionToDelete.amount); } else if (transactionToDelete.paymentMethod === 'cartao') { newBill = currentCreditCardBill - transactionToDelete.amount; billNeedsUpdate = true; } } else if (transactionToDelete.type === 'investment') { if (transactionToDelete.paymentMethod === 'para_investimento') { setCurrentBalance(prev => prev + transactionToDelete.amount); const newTotalInvested = totalInvested - transactionToDelete.amount; await updateTotalInvestedOnly(newTotalInvested); } } if(billNeedsUpdate) { setCurrentCreditCardBill(newBill < 0 ? 0 : newBill); await saveCreditCardBill(newBill < 0 ? 0 : newBill); } if (isTransactionDetailModalVisible) { setIsTransactionDetailModalVisible(false); setSelectedTransactionForDetail(null); } } } ], { cancelable: true } );
   };
 
   const handleOpenTransactionDetailModal = (transaction: Transaction) => {
@@ -307,51 +304,68 @@ export default function HomeScreen() {
     setIsTransactionDetailModalVisible(true);
   };
 
+  // Funções para os botões de ação do FAB
+  const handleOpenGastoModal = () => {
+    setShowActionButtons(false); 
+    setIsAddExpenseModalVisible(true); // ABRE O MODAL DE DESPESA
+  };
+
+  const handleOpenEntradaModal = () => {
+    setShowActionButtons(false);
+    setIsAddIncomeModalVisible(true);
+  };
+
+  const handleOpenInvestimentoModal = () => {
+    setShowActionButtons(false);
+    // Temporariamente usando Alert.prompt (funciona melhor no nativo)
+    // O ideal seria um modal customizado para descrição e valor.
+    Alert.prompt(
+        "Novo Investimento",
+        "Valor do Investimento:",
+        async (text) => { // O callback recebe o texto digitado
+            const valorStr = text;
+            if (valorStr) {
+                const valor = parseFloat(valorStr.replace(',', '.')) || 0;
+                if (valor > 0) {
+                    // Para descrição, podemos usar um valor padrão ou abrir outro prompt/modal
+                    // Por agora, vamos usar uma descrição padrão.
+                    await handleAddTransaction({
+                        description: "Investimento (App)", 
+                        amount: valor,
+                        // paymentMethod e category são inferidos ou definidos em handleAddTransaction
+                        // quando isInvestmentFromFab é true
+                    }, true); // true indica que é um investimento do FAB
+                } else {
+                    Alert.alert("Erro", "Valor inválido para investimento.");
+                }
+            }
+        },
+        'plain-text', // Tipo de input para o prompt
+        '',           // Valor default no input
+        'numeric'     // Tipo de teclado
+    );
+  };
+
   const themedAppStyles = getThemedStyles(colors, isDark);
   const listHeader = (
     <>
-      <View style={themedAppStyles.headerControlsContainer}>
-        <GradientButton 
-            title={initialAccountBalance > 0 || totalInvested > 0 || creditCardLimit > 0 ? "Editar Iniciais" : "Config. Inicial"}
-            onPress={() => setIsInitialSetupModalVisible(true)}
-            type="primary"
-            style={themedAppStyles.gradientButtonWrapper}
-            textStyle={themedAppStyles.gradientButtonText} 
-            disabled={isLoading}
-        />
-        <GradientButton 
-            title="Entrada R$"
-            onPress={() => setIsAddIncomeModalVisible(true)}
-            type="success"
-            style={themedAppStyles.gradientButtonWrapper}
-            textStyle={themedAppStyles.gradientButtonText}
-            disabled={isLoading}
-        />
-        <View style={themedAppStyles.themeSwitchGroup}>
-          <Text style={[themedAppStyles.themeIcon, {color: colors.icon}]}>☀️</Text>
-          <Switch
-            trackColor={{ false: colors.switchTrackFalse, true: colors.switchTrackTrue }}
-            thumbColor={isDark ? colors.primary : colors.switchThumb}
-            ios_backgroundColor={colors.border}
-            onValueChange={toggleTheme}
-            value={isDark}
-            style={themedAppStyles.themeSwitch}
-            disabled={isLoading}
-          />
-          <Text style={[themedAppStyles.themeIcon, {color: colors.icon}]}>🌙</Text>
-        </View>
-      </View>
-      <BalanceDisplay currentBalance={currentBalance} creditCardBill={creditCardBill} initialAccountBalance={initialAccountBalance} totalInvested={totalInvested} creditCardLimit={creditCardLimit} />
-      <ExpenseForm onAddTransaction={handleAddTransaction} />
+      {/* headerControlsContainer foi efetivamente removido, pois não tem mais conteúdo */}
+      <BalanceDisplay 
+        currentBalance={currentBalance} 
+        creditCardBill={currentCreditCardBill} 
+        initialAccountBalance={initialAccountBalance} 
+        totalInvested={totalInvested} 
+        creditCardLimit={creditCardLimit} 
+      />
       <Text style={themedAppStyles.transactionHistoryTitle}>Histórico de Transações</Text>
     </>
   );
 
-  if (isLoading) {
+  if (isLoadingInitialData || isLoadingTransactions) {
     return (
       <View style={[themedAppStyles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[themedAppStyles.loadingText, { color: colors.text }]}>Carregando seus dados...</Text>
+        <Text style={[themedAppStyles.loadingText, { color: colors.text }]}>Carregando dados...</Text>
       </View>
     );
   }
@@ -363,53 +377,62 @@ export default function HomeScreen() {
         <ExpenseList transactions={transactions} onOpenDetailModal={handleOpenTransactionDetailModal} headerContent={listHeader} />
       </KeyboardAvoidingView>
 
-      <InitialSetupModal visible={isInitialSetupModalVisible} onClose={() => setIsInitialSetupModalVisible(false)} onSaveSetup={handleInitialSetup} currentInitialBalance={initialAccountBalance} currentInitialInvested={totalInvested} currentCreditCardLimit={creditCardLimit} currentCreditCardBill={creditCardBill} />
+      <TouchableOpacity
+        style={[themedAppStyles.fabMain, { backgroundColor: colors.primary }]}
+        onPress={() => setShowActionButtons(!showActionButtons)}
+        activeOpacity={0.8}
+      >
+        <FontAwesome name={showActionButtons ? "times" : "plus"} size={24} color="#FFF" />
+      </TouchableOpacity>
+
+      {showActionButtons && (
+        <View style={themedAppStyles.fabActionsContainer}>
+          <TouchableOpacity style={themedAppStyles.fabActionItem} onPress={handleOpenGastoModal}>
+            <Text style={[themedAppStyles.fabActionText, {color: colors.text}]}>Gasto</Text>
+            <View style={[themedAppStyles.fabActionButton, { backgroundColor: colors.danger }]}>
+              <FontAwesome name="shopping-cart" size={20} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={themedAppStyles.fabActionItem} onPress={handleOpenEntradaModal}>
+             <Text style={[themedAppStyles.fabActionText, {color: colors.text}]}>Entrada</Text>
+            <View style={[themedAppStyles.fabActionButton, { backgroundColor: colors.success }]}>
+              <FontAwesome name="plus" size={20} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={themedAppStyles.fabActionItem} onPress={handleOpenInvestimentoModal}>
+            <Text style={[themedAppStyles.fabActionText, {color: colors.text}]}>Investimento</Text>
+            <View style={[themedAppStyles.fabActionButton, { backgroundColor: colors.invested }]}>
+              <FontAwesome name="line-chart" size={20} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <AddIncomeModal visible={isAddIncomeModalVisible} onClose={() => setIsAddIncomeModalVisible(false)} onAddIncome={handleAddIncome} />
+      <AddExpenseModal 
+        visible={isAddExpenseModalVisible}
+        onClose={() => setIsAddExpenseModalVisible(false)}
+        onAddExpense={handleAddExpense}
+      />
       {selectedTransactionForDetail && ( <TransactionDetailModal visible={isTransactionDetailModalVisible} transaction={selectedTransactionForDetail} onClose={() => { setIsTransactionDetailModalVisible(false); setSelectedTransactionForDetail(null); }} onDelete={handleDeleteTransaction} /> )}
     </SafeAreaView>
   );
 }
 
-// Estilos (getThemedStyles e getModalStyles) - Mantidos conforme sua última versão enviada
+// Estilos
 const getThemedStyles = (colors: ThemeColors, isDark?: boolean) => StyleSheet.create({
   safeArea: { flex: 1, },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', },
   loadingText: { marginTop: 10, fontSize: 16, color: colors.text },
   transactionHistoryTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 20, marginBottom: 10, textAlign: 'center', color: colors.text, paddingHorizontal: 15, },
-  headerControlsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between', 
-    alignItems: 'center',
-    paddingVertical: 10, 
-    paddingHorizontal: 10, 
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginBottom: 15, 
-  },
-  gradientButtonWrapper: { 
-    flex: 1, 
-    marginHorizontal: 4, 
-  },
-  gradientButtonText: { 
-    color: '#ffffff', 
-    fontSize: Platform.OS === 'ios' ? 13 : 12, 
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  themeSwitchGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center', 
-    flex: 0.8, 
-  },
-  themeIcon: {
-    fontSize: 18, 
-    color: colors.icon, 
-    marginHorizontal: Platform.OS === 'ios' ? 3 : 2, 
-  },
-  themeSwitch: {
-    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }], 
-  }
+  headerControlsContainer: { minHeight: 1, borderBottomWidth: 0, marginBottom: 0, paddingVertical:0, paddingHorizontal:0 }, // Esvaziado
+  fabMain: { position: 'absolute', right: 25, bottom: 25, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, zIndex: 10 },
+  fabActionsContainer: { position: 'absolute', right: 25, bottom: 95, alignItems: 'flex-end', zIndex: 9 },
+  fabActionItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 18, },
+  fabActionText: { marginRight: 12, backgroundColor: colors.card, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 5, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 1, fontSize: 14, fontWeight: '500' },
+  fabActionButton: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 2, },
 });
 
 const getModalStyles = (colors: ThemeColors) => StyleSheet.create({
