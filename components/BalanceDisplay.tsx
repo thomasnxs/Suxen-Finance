@@ -12,15 +12,13 @@ interface BalanceDisplayProps {
   creditCardLimit: number;
   onOpenCartaoDetail: () => void;
   onOpenResgatarInvestimentoModal: () => void;
-  initialAccountBalance: number; // <<<--- LINHA ADICIONADA AQUI
+  initialAccountBalance: number;
 }
 
-// Função para formatar valores monetários
 const formatCurrency = (value: number): string => {
   return `R$ ${value.toFixed(2).replace('.', ',')}`;
 };
 
-// Função para gerar os estilos, focada nos cards
 const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: { 
     paddingHorizontal: 10,
@@ -74,7 +72,7 @@ const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
   creditCardLimit,
   onOpenCartaoDetail,
   onOpenResgatarInvestimentoModal,
-  initialAccountBalance, // Prop agora é recebida, mas não diretamente usada no JSX abaixo (o que está OK)
+  initialAccountBalance,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = getStyles(colors, isDark);
@@ -96,38 +94,34 @@ const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
           </TouchableOpacity>
         </View>
         <Text style={[styles.cardValue, styles.currentBalanceValueColor]}>
-          {showSaldo ? formatCurrency(currentBalance) : 'R$ ••••••'}
-        </Text>
+          {showSaldo ? formatCurrency(currentBalance) : 'R$ ••••••'}
+        </Text>
       </View>
 
-      {/* Card 2: Cartão de Crédito - CLICÁVEL */}
+      {/* Card 2: Cartão de Crédito */}
       <TouchableOpacity onPress={onOpenCartaoDetail} activeOpacity={0.7}>
         <View style={styles.card}>
           <View style={styles.cardTitleContainer}>
             <Text style={styles.cardTitle}>Cartão de Crédito</Text>
             <FontAwesome name="chevron-right" size={18} color={colors.secondaryText} /> 
           </View>
-          <Text style={[styles.cardValue, styles.creditCardValueColor]}>
-            Fatura: {formatCurrency(creditCardBill)}
-          </Text>
-          <Text style={styles.cardDetailText}>
-            Limite: {creditCardLimit > 0 ? formatCurrency(creditCardLimit) : 'Não definido'}
-          </Text>
+          {/* CORREÇÃO: Usando template string sem espaços no início */}
+          <Text style={[styles.cardValue, styles.creditCardValueColor]}>{`Fatura: ${formatCurrency(creditCardBill)}`}</Text>
+          <Text style={styles.cardDetailText}>{`Limite: ${creditCardLimit > 0 ? formatCurrency(creditCardLimit) : 'Não definido'}`}</Text>
         </View>
       </TouchableOpacity>
 
-      {/* Card 3: Investimentos - CLICÁVEL */}
+      {/* Card 3: Investimentos */}
       <TouchableOpacity onPress={onOpenResgatarInvestimentoModal} activeOpacity={0.7}>
-        <View style={styles.card}>
-            <View style={styles.cardTitleContainer}>
-              <Text style={styles.cardTitle}>Investimentos</Text>
-              <FontAwesome name="chevron-right" size={18} color={colors.secondaryText} />
-            </View>
-            <Text style={[styles.cardValue, styles.investedValueColor]}>
-              Total: {formatCurrency(totalInvested)}
-            </Text>
-          </View>
-      </TouchableOpacity>
+        <View style={styles.card}>
+          <View style={styles.cardTitleContainer}>
+            <Text style={styles.cardTitle}>Investimentos</Text>
+            <FontAwesome name="chevron-right" size={18} color={colors.secondaryText} />
+          </View>
+          {/* CORREÇÃO: Usando template string sem espaços no início */}
+          <Text style={[styles.cardValue, styles.investedValueColor]}>{`Total: ${formatCurrency(totalInvested)}`}</Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };

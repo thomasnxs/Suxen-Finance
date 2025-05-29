@@ -22,11 +22,11 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   keyboardAvoidingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
   modalView: {
-    margin: 20,
+    margin: 70,
     backgroundColor: colors.card,
     borderRadius: 20,
-    paddingVertical: 30,
-    paddingHorizontal: 25,
+    paddingVertical: 40,
+    paddingHorizontal: 55,
     alignItems: 'stretch',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -49,8 +49,17 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 20, 
     textAlign: 'center' 
   },
-  buttonContainer: { flexDirection: 'row', marginTop: 10 },
-  buttonSpacer: { width: 10 }
+  buttonContainer: { 
+    flexDirection: 'row', 
+    marginTop: 10,
+    marginLeft: -20,
+    gap: 16, // Ajuste para alinhar com o padding do modal
+   },
+  buttonSpacer: { width: 0, 
+
+   },
+  
+  
 });
 
 const ResgatarInvestimentoModal: React.FC<ResgatarInvestimentoModalProps> = ({ 
@@ -110,7 +119,7 @@ const ResgatarInvestimentoModal: React.FC<ResgatarInvestimentoModalProps> = ({
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"} 
         style={styles.keyboardAvoidingContainer}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? -10 : 0}
       >
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
@@ -129,8 +138,8 @@ const ResgatarInvestimentoModal: React.FC<ResgatarInvestimentoModalProps> = ({
               selectTextOnFocus={Platform.OS === 'android'}
             />
             <View style={styles.buttonContainer}>
-              <GradientButton title="Cancelar" onPress={onClose} type="default" style={{ flex: 1, marginRight: styles.buttonSpacer.width }} />
-              <GradientButton title="Confirmar Resgate" onPress={handleConfirm} type="success" style={{ flex: 1, marginLeft: styles.buttonSpacer.width }} />
+              <GradientButton title="Cancelar" onPress={onClose} type="default" style={{ flex: 1, minWidth: 130, maxWidth: 180, marginLeft: 0  }} />
+              <GradientButton title="Resgatar" onPress={handleConfirm} type="success" style={{ flex: 1, minWidth: 130, maxWidth: 180, marginLeft: 0  }} />
             </View>
           </View>
         </View>

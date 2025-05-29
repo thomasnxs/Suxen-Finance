@@ -134,7 +134,7 @@ const PagarFaturaModal: React.FC<PagarFaturaModalProps> = ({ visible, onClose, o
         behavior={Platform.OS === "ios" ? "padding" : "height"} 
         style={styles.keyboardAvoidingContainer}
         // Ajuste este offset conforme necessário, especialmente se houver um header global acima do modal
-        keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0} 
+        keyboardVerticalOffset={Platform.OS === "ios" ? -10 : 0} 
       >
         <View style={styles.centeredView}> 
           <View style={styles.modalView}>

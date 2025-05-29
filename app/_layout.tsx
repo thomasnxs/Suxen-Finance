@@ -17,15 +17,15 @@ function RootStackLayout() {
       }}
     >
       <Stack.Screen
+        name="welcome" 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="(tabs)" 
         options={{
           title: 'Nome do App', 
           headerShown: true, 
         }}
-      />
-       <Stack.Screen // Garanta que a tela de welcome está definida aqui também
-        name="welcome" 
-        options={{ headerShown: false }}
       />
     </Stack>
   );
@@ -33,7 +33,7 @@ function RootStackLayout() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
+    <ThemeProvider> 
       <InitialDataProvider> 
         <GestureHandlerRootView style={{ flex: 1 }}>
           <RootStackLayout />

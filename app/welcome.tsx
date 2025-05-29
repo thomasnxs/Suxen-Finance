@@ -1,71 +1,77 @@
 // GastosApp/app/welcome.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter } from 'expo-router'; // useRouter para navegação
-import React, { useState } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import GradientButton from '../components/GradientButton'; // Ajuste o caminho se necessário
-import InitialSetupModal from '../components/InitialSetupModal'; // Ajuste o caminho se necessário
-import { ThemeColors } from '../constants/colors'; // Ajuste o caminho se necessário
-import { useTheme } from '../contexts/ThemeContext'; // Ajuste o caminho se necessário
+import GradientButton from '../components/GradientButton';
+import InitialSetupModal from '../components/InitialSetupModal';
+import { ThemeColors } from '../constants/colors';
+import { useInitialData } from '../contexts/InitialDataContext'; // IMPORTAR O HOOK DO CONTEXTO
+import { useTheme } from '../contexts/ThemeContext';
 
-// Chaves do AsyncStorage
 const USER_NAME_KEY = '@SuxenFinance:userName';
 const SETUP_COMPLETE_KEY = '@SuxenFinance:setupComplete';
 
 export default function WelcomeScreen() {
-  const { colors, isDark } = useTheme();
-  const router = useRouter(); // Para navegação
+  const { colors } = useTheme(); // Removido isDark se não usado diretamente para estilos aqui
+  const router = useRouter();
   const styles = getStyles(colors);
+
+  // Usar o contexto para salvar os dados iniciais
+  const { 
+    handleSaveInitialSetup: saveInitialDataInContext, 
+    initialAccountBalance, // Para passar como valor atual para o modal, se necessário
+    totalInvested,
+    creditCardLimit,
+    creditCardBill
+  } = useInitialData();
 
   const [userName, setUserName] = useState('');
   const [isInitialSetupModalVisible, setIsInitialSetupModalVisible] = useState(false);
 
-  // Estados para passar ao InitialSetupModal (serão carregados do context ou storage mais tarde)
-  // Por agora, como estamos chamando pela primeira vez, podem ser zero.
-  // Na próxima etapa, integraremos com o InitialDataContext para valores atuais.
-  const [currentValuesForModal, setCurrentValuesForModal] = useState({
-    balance: 0,
-    invested: 0,
-    limit: 0,
-    initialBill: 0,
-  });
+  // Carregar o nome do usuário se já existir (ex: se ele voltou para esta tela)
+  useEffect(() => {
+    const loadUserName = async () => {
+      const storedName = await AsyncStorage.getItem(USER_NAME_KEY);
+      if (storedName) {
+        setUserName(storedName);
+      }
+    };
+    loadUserName();
+  }, []);
+
 
   const handleStart = async () => {
     if (userName.trim() === '') {
       Alert.alert('Nome Necessário', 'Por favor, insira seu nome para começar.');
       return;
     }
-    console.log('Nome do Usuário:', userName);
+    console.log('WelcomeScreen: Nome do Usuário a ser salvo:', userName);
     try {
       await AsyncStorage.setItem(USER_NAME_KEY, userName);
-      console.log('Nome salvo no AsyncStorage');
-      // Abrir o modal de configuração inicial
-      setIsInitialSetupModalVisible(true);
+      console.log('WelcomeScreen: Nome salvo no AsyncStorage');
+      setIsInitialSetupModalVisible(true); // Abre o modal de configuração inicial
     } catch (error) {
-      console.error('Erro ao salvar nome no AsyncStorage:', error);
+      console.error('WelcomeScreen: Erro ao salvar nome no AsyncStorage:', error);
       Alert.alert('Erro', 'Não foi possível salvar seu nome. Tente novamente.');
     }
   };
 
-  const handleSaveInitialSetup = async (data: { balance: number; invested: number; limit: number; initialBill: number }) => {
-    console.log('Dados da configuração inicial recebidos:', data);
-    // Aqui salvaremos os dados financeiros e marcaremos o setup como completo.
-    // A lógica de salvar os dados financeiros já está no InitialDataContext,
-    // mas como ainda não o integramos aqui, vamos simular.
+  // Esta função será chamada pelo InitialSetupModal
+  const handleModalSave = async (data: { balance: number; invested: number; limit: number; initialBill: number }) => {
+    console.log('WelcomeScreen: Dados da configuração inicial recebidos do modal:', data);
     try {
-      // Simulação de salvar os dados (na próxima etapa usaremos o context)
-      await AsyncStorage.setItem('@GastosApp:initialAccountBalance', JSON.stringify(data.balance));
-      await AsyncStorage.setItem('@GastosApp:totalInvested', JSON.stringify(data.invested));
-      await AsyncStorage.setItem('@GastosApp:creditCardLimit', JSON.stringify(data.limit));
-      await AsyncStorage.setItem('@GastosApp:creditCardBill', JSON.stringify(data.initialBill));
-      
+      // Chama a função do contexto para salvar os dados financeiros iniciais
+      await saveInitialDataInContext(data); 
+      console.log('WelcomeScreen: Dados financeiros iniciais salvos via contexto.');
+
       await AsyncStorage.setItem(SETUP_COMPLETE_KEY, 'true');
-      console.log('Setup marcado como completo e dados salvos.');
+      console.log('WelcomeScreen: Setup marcado como completo.');
+      
       setIsInitialSetupModalVisible(false);
-      // Navegar para as abas, substituindo a tela de welcome para não poder voltar
       router.replace('/(tabs)/home'); 
     } catch (error) {
-      console.error('Erro ao salvar configuração inicial completa:', error);
+      console.error('WelcomeScreen: Erro ao salvar configuração inicial completa:', error);
       Alert.alert('Erro', 'Não foi possível salvar a configuração. Tente novamente.');
     }
   };
@@ -75,7 +81,6 @@ export default function WelcomeScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoidingContainer}
     >
-      {/* Configura o header para esta tela específica */}
       <Stack.Screen options={{ title: 'Bem-vindo(a)!', headerTitleAlign: 'center', headerBackVisible: false }} />
       <View style={styles.container}>
         <Text style={styles.title}>Olá!</Text>
@@ -89,7 +94,7 @@ export default function WelcomeScreen() {
           autoCapitalize="words"
         />
         <GradientButton
-          title="Iniciar"
+          title="Iniciar Configuração" // Título do botão atualizado
           onPress={handleStart}
           type="primary"
           style={styles.button}
@@ -99,13 +104,14 @@ export default function WelcomeScreen() {
       <InitialSetupModal
         visible={isInitialSetupModalVisible}
         onClose={() => setIsInitialSetupModalVisible(false)}
-        onSaveSetup={handleSaveInitialSetup}
-        // Passando valores zerados ou os últimos valores se quiséssemos permitir edição aqui
-        // Na próxima etapa, esses valores virão do InitialDataContext
-        currentInitialBalance={currentValuesForModal.balance}
-        currentInitialInvested={currentValuesForModal.invested}
-        currentCreditCardLimit={currentValuesForModal.limit}
-        currentCreditCardBill={currentValuesForModal.initialBill}
+        onSaveSetup={handleModalSave} // Chama a função que usa o contexto
+        // Passando os valores atuais do contexto (que devem ser 0 após um reset)
+        // ou os valores da última configuração se o usuário estiver editando via "Preferências"
+        // No fluxo de welcome após um reset, esperamos que sejam 0.
+        currentInitialBalance={initialAccountBalance}
+        currentInitialInvested={totalInvested}
+        currentCreditCardLimit={creditCardLimit}
+        currentCreditCardBill={creditCardBill}
       />
     </KeyboardAvoidingView>
   );
@@ -114,13 +120,14 @@ export default function WelcomeScreen() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   keyboardAvoidingContainer: {
     flex: 1,
+    backgroundColor: colors.background, // Fundo para KAV
   },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: colors.background,
+    // backgroundColor removido daqui, já está no KAV
   },
   title: {
     fontSize: 32,
@@ -147,6 +154,6 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     marginBottom: 30,
   },
   button: {
-    width: '100%', // Para o botão ocupar a largura total
+    width: '100%', 
   }
 });
