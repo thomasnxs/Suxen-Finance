@@ -1,12 +1,25 @@
 // GastosApp/app/(tabs)/preferencias.tsx
-import { Stack } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Importar AsyncStorage
+import { Stack, useRouter } from 'expo-router'; // Importar useRouter
 import React, { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+
 import GradientButton from '../../components/GradientButton';
 import InitialSetupModal from '../../components/InitialSetupModal';
 import { ThemeColors } from '../../constants/colors';
-import { useInitialData } from '../../contexts/InitialDataContext';
+import { InitialDataContextType, useInitialData } from '../../contexts/InitialDataContext'; // Importar o tipo também
 import { useTheme } from '../../contexts/ThemeContext';
+
+const ALL_APP_DATA_KEYS = [ // Definindo as chaves aqui para fácil manutenção
+  '@GastosApp:initialAccountBalance',
+  '@GastosApp:totalInvested',
+  '@GastosApp:creditCardLimit',
+  '@GastosApp:creditCardBill',
+  '@GastosApp:transactions',
+  '@SuxenFinance:theme',
+  '@SuxenFinance:userName',
+  '@SuxenFinance:setupComplete'
+];
 
 export default function PreferenciasScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
@@ -14,31 +27,68 @@ export default function PreferenciasScreen() {
     initialAccountBalance, 
     totalInvested, 
     creditCardLimit, 
-    creditCardBill, // Fatura inicial/configurada
-    handleSaveInitialSetup,
+    creditCardBill,
+    handleSaveInitialSetup, // Vem do context para salvar os dados iniciais
     isLoadingData 
-  } = useInitialData();
+  } = useInitialData() as InitialDataContextType; // Usando a asserção de tipo
   
   const styles = getStyles(colors, isDark);
+  const router = useRouter();
 
   const [isInitialSetupModalVisible, setIsInitialSetupModalVisible] = useState(false);
 
   const handleOpenInitialSetup = () => {
     if (isLoadingData) {
-      // Talvez mostrar um feedback ou desabilitar o botão se os dados ainda estão carregando
-      console.log("Dados iniciais ainda carregando, aguarde para editar.");
+      Alert.alert("Aguarde", "Os dados iniciais ainda estão carregando.");
       return;
     }
     setIsInitialSetupModalVisible(true);
   };
 
-  // A função onSaveSetup do modal chamará diretamente handleSaveInitialSetup do contexto
   const onModalSave = async (data: { balance: number; invested: number; limit: number; initialBill: number }) => {
-    await handleSaveInitialSetup(data); // Chama a função do contexto
+    await handleSaveInitialSetup(data); 
     setIsInitialSetupModalVisible(false);
-    // Não precisa de navegação aqui, pois o modal fecha e permanece na tela de Preferências
+    Alert.alert("Sucesso", "Dados iniciais atualizados!");
   };
 
+  const confirmResetAppData = () => {
+    Alert.alert(
+      "Resetar Dados do Aplicativo",
+      "Tem certeza que deseja apagar todos os dados e voltar para a configuração inicial? Esta ação não pode ser desfeita.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        { 
+          text: "Resetar Tudo", 
+          style: "destructive", 
+          onPress: handleResetAppData 
+        }
+      ]
+    );
+  };
+
+  const handleResetAppData = async () => {
+    console.log("Preferencias: Iniciando reset de todos os dados do app.");
+    try {
+      await AsyncStorage.multiRemove(ALL_APP_DATA_KEYS);
+      console.log("Preferencias: Dados do AsyncStorage removidos.");
+      
+      // Opcional: Resetar estados de contextos se eles não recarregarem automaticamente
+      // Para InitialDataContext, o useEffect dele já recarrega (e encontrará vazio)
+      // Para ThemeContext, ele também recarrega e voltará ao padrão do sistema/light
+
+      Alert.alert(
+        "Dados Resetados",
+        "Todos os dados do aplicativo foram apagados. O aplicativo será reiniciado na tela de configuração.",
+        [{ text: "OK", onPress: () => router.replace('/welcome') }] // Navega para a tela de boas-vindas
+      );
+    } catch (error) {
+      console.error("Preferencias: Erro ao resetar dados do app:", error);
+      Alert.alert("Erro", "Não foi possível resetar os dados do aplicativo.");
+    }
+  };
 
   return (
     <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
@@ -51,10 +101,10 @@ export default function PreferenciasScreen() {
           onPress={handleOpenInitialSetup}
           type="primary"
           style={styles.button}
-          disabled={isLoadingData} // Desabilita o botão se os dados do contexto estiverem carregando
+          disabled={isLoadingData}
         />
         <Text style={styles.descriptionText}>
-          Altere seu saldo inicial, total investido, limite do cartão e fatura inicial.
+          Altere seu saldo inicial, total investido, limite do cartão e fatura inicial definida no setup.
         </Text>
       </View>
 
@@ -63,29 +113,42 @@ export default function PreferenciasScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Aparência</Text>
         <View style={styles.themeSwitchContainer}>
-          <Text style={[styles.themeLabel, !isDark && styles.activeThemeLabel]}>☀️ Claro</Text>
+          <Text style={[styles.themeLabel, !isDark && styles.activeThemeLabel, {color: !isDark ? colors.primary: colors.secondaryText}]}>☀️ Claro</Text>
           <Switch
             trackColor={{ false: colors.switchTrackFalse, true: colors.switchTrackTrue }}
             thumbColor={isDark ? colors.primary : colors.switchThumb}
-            ios_backgroundColor={colors.border} // Para iOS
+            ios_backgroundColor={colors.border}
             onValueChange={toggleTheme}
             value={isDark}
             style={styles.switch}
           />
-          <Text style={[styles.themeLabel, isDark && styles.activeThemeLabel]}>🌙 Escuro</Text>
+          <Text style={[styles.themeLabel, isDark && styles.activeThemeLabel, {color: isDark ? colors.primary: colors.secondaryText}]}>🌙 Escuro</Text>
         </View>
       </View>
 
-      {/* Outras preferências podem ser adicionadas aqui no futuro */}
+      <View style={styles.separator} />
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Aplicativo</Text>
+        <GradientButton
+          title="Resetar Dados do App"
+          onPress={confirmResetAppData}
+          type="danger" // Botão de perigo
+          style={styles.button}
+        />
+        <Text style={styles.descriptionText}>
+          Apaga todos os seus dados financeiros e configurações, retornando o app ao estado inicial.
+        </Text>
+      </View>
 
       <InitialSetupModal
         visible={isInitialSetupModalVisible}
         onClose={() => setIsInitialSetupModalVisible(false)}
-        onSaveSetup={onModalSave} // Passa a função que chama o handleSaveInitialSetup do contexto
+        onSaveSetup={onModalSave} 
         currentInitialBalance={initialAccountBalance}
         currentInitialInvested={totalInvested}
         currentCreditCardLimit={creditCardLimit}
-        currentCreditCardBill={creditCardBill} // Passa a fatura inicial/configurada do contexto
+        currentCreditCardBill={creditCardBill} 
       />
     </ScrollView>
   );
@@ -98,7 +161,7 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   },
   container: {
     padding: 20,
-    alignItems: 'stretch', // Para que os botões e seções ocupem a largura
+    alignItems: 'stretch', 
   },
   section: {
     backgroundColor: colors.card,
@@ -119,7 +182,7 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    marginBottom: 10, // Espaço abaixo do botão
+    marginBottom: 10, 
   },
   descriptionText: {
     fontSize: 14,
@@ -128,26 +191,26 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     marginTop: 5,
   },
   separator: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 10, // Espaço entre as seções, se não usar o marginbottom da section
+    height: 0, // Pode remover a linha visual se o marginBottom da section for suficiente
+    // backgroundColor: colors.border,
+    // marginVertical: 10, 
   },
   themeSwitchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around', // Espaça os elementos
+    justifyContent: 'space-around', 
     paddingVertical: 10,
   },
   themeLabel: {
     fontSize: 16,
-    color: colors.secondaryText,
+    // color: colors.secondaryText, // Cor definida inline agora
     marginHorizontal: 10,
   },
   activeThemeLabel: {
     fontWeight: 'bold',
-    color: colors.primary,
+    // color: colors.primary, // Cor definida inline agora
   },
   switch: {
-    transform: Platform.OS === 'ios' ? [{ scaleX: 0.9 }, { scaleY: 0.9 }] : [], // Ajuste opcional para iOS
+    transform: Platform.OS === 'ios' ? [{ scaleX: 0.9 }, { scaleY: 0.9 }] : [], 
   }
 });
