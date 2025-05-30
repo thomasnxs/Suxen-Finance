@@ -1,16 +1,16 @@
 // GastosApp/app/(tabs)/preferencias.tsx
-import AsyncStorage from '@react-native-async-storage/async-storage'; // Importar AsyncStorage
-import { Stack, useRouter } from 'expo-router'; // Importar useRouter
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import GradientButton from '../../components/GradientButton';
 import InitialSetupModal from '../../components/InitialSetupModal';
 import { ThemeColors } from '../../constants/colors';
-import { InitialDataContextType, useInitialData } from '../../contexts/InitialDataContext'; // Importar o tipo também
+import { InitialDataContextType, useInitialData } from '../../contexts/InitialDataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const ALL_APP_DATA_KEYS = [ // Definindo as chaves aqui para fácil manutenção
+const ALL_APP_DATA_KEYS = [
   '@GastosApp:initialAccountBalance',
   '@GastosApp:totalInvested',
   '@GastosApp:creditCardLimit',
@@ -28,13 +28,13 @@ export default function PreferenciasScreen() {
     totalInvested, 
     creditCardLimit, 
     creditCardBill,
-    handleSaveInitialSetup, // Vem do context para salvar os dados iniciais
-    isLoadingData 
-  } = useInitialData() as InitialDataContextType; // Usando a asserção de tipo
+    handleSaveInitialSetup, 
+    isLoadingData, 
+    forceReloadAllInitialData // PEGANDO A NOVA FUNÇÃO DO CONTEXTO
+  } = useInitialData() as InitialDataContextType; 
   
   const styles = getStyles(colors, isDark);
   const router = useRouter();
-
   const [isInitialSetupModalVisible, setIsInitialSetupModalVisible] = useState(false);
 
   const handleOpenInitialSetup = () => {
@@ -56,15 +56,8 @@ export default function PreferenciasScreen() {
       "Resetar Dados do Aplicativo",
       "Tem certeza que deseja apagar todos os dados e voltar para a configuração inicial? Esta ação não pode ser desfeita.",
       [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
-        { 
-          text: "Resetar Tudo", 
-          style: "destructive", 
-          onPress: handleResetAppData 
-        }
+        { text: "Cancelar", style: "cancel" },
+        { text: "Resetar Tudo", style: "destructive", onPress: handleResetAppData }
       ]
     );
   };
@@ -75,14 +68,13 @@ export default function PreferenciasScreen() {
       await AsyncStorage.multiRemove(ALL_APP_DATA_KEYS);
       console.log("Preferencias: Dados do AsyncStorage removidos.");
       
-      // Opcional: Resetar estados de contextos se eles não recarregarem automaticamente
-      // Para InitialDataContext, o useEffect dele já recarrega (e encontrará vazio)
-      // Para ThemeContext, ele também recarrega e voltará ao padrão do sistema/light
+      await forceReloadAllInitialData(); // <<--- CHAMANDO A FUNÇÃO DO CONTEXTO
+      console.log("Preferencias: InitialDataContext forçado a recarregar.");
 
       Alert.alert(
         "Dados Resetados",
-        "Todos os dados do aplicativo foram apagados. O aplicativo será reiniciado na tela de configuração.",
-        [{ text: "OK", onPress: () => router.replace('/welcome') }] // Navega para a tela de boas-vindas
+        "Todos os dados do aplicativo foram apagados.", // Mensagem simplificada
+        [{ text: "OK", onPress: () => router.replace('/welcome') }] 
       );
     } catch (error) {
       console.error("Preferencias: Erro ao resetar dados do app:", error);
@@ -133,7 +125,7 @@ export default function PreferenciasScreen() {
         <GradientButton
           title="Resetar Dados do App"
           onPress={confirmResetAppData}
-          type="danger" // Botão de perigo
+          type="danger"
           style={styles.button}
         />
         <Text style={styles.descriptionText}>
@@ -141,6 +133,7 @@ export default function PreferenciasScreen() {
         </Text>
       </View>
 
+      {/* InitialSetupModal é renderizado aqui, como antes */}
       <InitialSetupModal
         visible={isInitialSetupModalVisible}
         onClose={() => setIsInitialSetupModalVisible(false)}
@@ -191,9 +184,7 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     marginTop: 5,
   },
   separator: {
-    height: 0, // Pode remover a linha visual se o marginBottom da section for suficiente
-    // backgroundColor: colors.border,
-    // marginVertical: 10, 
+    height: 0, 
   },
   themeSwitchContainer: {
     flexDirection: 'row',
@@ -203,12 +194,10 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   },
   themeLabel: {
     fontSize: 16,
-    // color: colors.secondaryText, // Cor definida inline agora
     marginHorizontal: 10,
   },
   activeThemeLabel: {
     fontWeight: 'bold',
-    // color: colors.primary, // Cor definida inline agora
   },
   switch: {
     transform: Platform.OS === 'ios' ? [{ scaleX: 0.9 }, { scaleY: 0.9 }] : [], 

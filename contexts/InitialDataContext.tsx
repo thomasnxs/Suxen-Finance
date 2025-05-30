@@ -10,11 +10,11 @@ import {
   saveCreditCardLimit,
   saveInitialAccountBalance,
   saveTotalInvested
-} from '../services/storage';
+} from '../services/storage'; // Ajuste o caminho se 'services' estiver em outro lugar
 
 const USER_NAME_KEY = '@SuxenFinance:userName';
 
-export interface InitialData { // Exportando para possível uso externo se necessário
+export interface InitialData {
   initialAccountBalance: number;
   totalInvested: number;
   creditCardLimit: number;
@@ -22,10 +22,12 @@ export interface InitialData { // Exportando para possível uso externo se neces
   userName: string; 
 }
 
-export interface InitialDataContextType extends InitialData { 
+export interface InitialDataContextType extends InitialData {
   isLoadingData: boolean;
   handleSaveInitialSetup: (data: { balance: number; invested: number; limit: number; initialBill: number }) => Promise<void>;
   updateTotalInvestedOnly: (newTotalInvested: number) => Promise<void>; 
+  forceReloadAllInitialData: () => Promise<void>;
+  setUserNameInContext: (name: string) => Promise<void>; // NOVA FUNÇÃO NA INTERFACE
 }
 
 const InitialDataContext = createContext<InitialDataContextType | undefined>(undefined);
@@ -35,44 +37,43 @@ export const InitialDataProvider: React.FC<{ children: ReactNode }> = ({ childre
   const [totalInvested, setTotalInvested] = useState<number>(0);
   const [creditCardLimit, setCreditCardLimit] = useState<number>(0);
   const [creditCardBill, setCreditCardBill] = useState<number>(0);
-  const [userName, setUserName] = useState<string>(''); 
+  const [userName, setUserName] = useState<string>('');
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
 
-  useEffect(() => {
-    const loadDataFromStorage = async () => {
-      setIsLoadingData(true);
-      console.log("InitialDataContext: Carregando dados iniciais e nome do AsyncStorage...");
-      try {
-        const storedUserName = await AsyncStorage.getItem(USER_NAME_KEY);
-        setUserName(storedUserName || ''); 
-        console.log("InitialDataContext: userName carregado:", storedUserName || '');
-        
-        const [loadedBalance, loadedInvested, loadedLimit, loadedBill] = await Promise.all([
-          loadInitialAccountBalance(),
-          loadTotalInvested(),
-          loadCreditCardLimit(),
-          loadCreditCardBill()
-        ]);
-        
-        console.log("InitialDataContext: Dados financeiros carregados:", { loadedBalance, loadedInvested, loadedLimit, loadedBill });
-        setInitialAccountBalance(loadedBalance);
-        setTotalInvested(loadedInvested);
-        setCreditCardLimit(loadedLimit);
-        setCreditCardBill(loadedBill);
-      } catch (error) {
-        console.error("InitialDataContext: Falha ao carregar dados:", error);
-        setUserName(''); 
-        setInitialAccountBalance(0);
-        setTotalInvested(0);
-        setCreditCardLimit(0);
-        setCreditCardBill(0);
-      } finally {
-        setIsLoadingData(false);
-        console.log("InitialDataContext: Carregamento de dados finalizado.");
-      }
-    };
-    loadDataFromStorage();
-  }, []);
+  const loadDataFromStorage = async () => {
+    setIsLoadingData(true);
+    console.log("InitialDataContext: Iniciando loadDataFromStorage...");
+    try {
+      const storedUserName = await AsyncStorage.getItem(USER_NAME_KEY);
+      setUserName(storedUserName || ''); 
+      console.log("InitialDataContext: userName carregado:", storedUserName || '');
+      
+      const [loadedBalance, loadedInvested, loadedLimit, loadedBill] = await Promise.all([
+        loadInitialAccountBalance(),
+        loadTotalInvested(),
+        loadCreditCardLimit(),
+        loadCreditCardBill()
+      ]);
+      
+      console.log("InitialDataContext: Dados financeiros carregados:", { loadedBalance, loadedInvested, loadedLimit, loadedBill });
+      setInitialAccountBalance(loadedBalance);
+      setTotalInvested(loadedInvested);
+      setCreditCardLimit(loadedLimit);
+      setCreditCardBill(loadedBill);
+    } catch (error) {
+      console.error("InitialDataContext: Falha ao carregar dados:", error);
+      setUserName(''); 
+      setInitialAccountBalance(0); setTotalInvested(0);
+      setCreditCardLimit(0); setCreditCardBill(0);
+    } finally {
+      setIsLoadingData(false);
+      console.log("InitialDataContext: Carregamento de dados finalizado.");
+    }
+  };
+
+  useEffect(() => {
+    loadDataFromStorage(); 
+  }, []); 
 
   const handleSaveInitialSetup = async (data: { balance: number; invested: number; limit: number; initialBill: number }) => {
     console.log("InitialDataContext: Salvando dados do setup inicial:", data);
@@ -107,20 +108,38 @@ export const InitialDataProvider: React.FC<{ children: ReactNode }> = ({ childre
     }
   };
 
-  return (
-    <InitialDataContext.Provider value={{
-      initialAccountBalance,
-      totalInvested,
-      creditCardLimit,
-      creditCardBill,
-      userName, 
-      isLoadingData,
-      handleSaveInitialSetup,
-      updateTotalInvestedOnly
-    }}>
-      {children}
-    </InitialDataContext.Provider>
-  );
+  const forceReloadAllInitialData = async () => {
+    console.log("InitialDataContext: Forçando recarregamento de todos os dados iniciais...");
+    await loadDataFromStorage(); 
+  };
+
+  // NOVA FUNÇÃO PARA ATUALIZAR E SALVAR O NOME
+  const setUserNameInContext = async (name: string) => {
+    try {
+      await AsyncStorage.setItem(USER_NAME_KEY, name);
+      setUserName(name); // Atualiza o estado do contexto
+      console.log("InitialDataContext: userName atualizado e salvo:", name);
+    } catch (error) {
+      console.error("InitialDataContext: Falha ao salvar userName:", error);
+    }
+  };
+
+  return (
+    <InitialDataContext.Provider value={{
+      initialAccountBalance,
+      totalInvested,
+      creditCardLimit,
+      creditCardBill,
+      userName, 
+      isLoadingData,
+      handleSaveInitialSetup,
+      updateTotalInvestedOnly,
+      forceReloadAllInitialData,
+      setUserNameInContext // EXPONDO A NOVA FUNÇÃO
+    }}>
+      {children}
+    </InitialDataContext.Provider>
+  );
 };
 
 export const useInitialData = (): InitialDataContextType => {

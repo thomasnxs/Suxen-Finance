@@ -3,56 +3,57 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import GradientButton from '../components/GradientButton';
-import InitialSetupModal from '../components/InitialSetupModal';
-import { ThemeColors } from '../constants/colors';
-import { useInitialData } from '../contexts/InitialDataContext'; // IMPORTAR O HOOK DO CONTEXTO
-import { useTheme } from '../contexts/ThemeContext';
+import GradientButton from '../components/GradientButton'; // Ajuste o caminho se necessário
+import InitialSetupModal from '../components/InitialSetupModal'; // Ajuste o caminho se necessário
+import { ThemeColors } from '../constants/colors'; // Ajuste o caminho se necessário
+import { InitialDataContextType, useInitialData } from '../contexts/InitialDataContext'; // Importar o hook e o tipo
+import { useTheme } from '../contexts/ThemeContext'; // Ajuste o caminho se necessário
 
-const USER_NAME_KEY = '@SuxenFinance:userName';
+// Chave do AsyncStorage para o status de setup completo
 const SETUP_COMPLETE_KEY = '@SuxenFinance:setupComplete';
+// A USER_NAME_KEY já está definida e usada no InitialDataContext
 
 export default function WelcomeScreen() {
-  const { colors } = useTheme(); // Removido isDark se não usado diretamente para estilos aqui
+  const { colors } = useTheme();
   const router = useRouter();
   const styles = getStyles(colors);
 
-  // Usar o contexto para salvar os dados iniciais
+  // Pega as funções e dados do contexto
   const { 
     handleSaveInitialSetup: saveInitialDataInContext, 
-    initialAccountBalance, // Para passar como valor atual para o modal, se necessário
+    setUserNameInContext, // Função para salvar o nome no contexto e AsyncStorage
+    initialAccountBalance, 
     totalInvested,
     creditCardLimit,
-    creditCardBill
-  } = useInitialData();
+    creditCardBill,
+    userName: contextUserName // Pega o userName do contexto para preencher o input se já existir
+  } = useInitialData() as InitialDataContextType; // Usando asserção de tipo
 
-  const [userName, setUserName] = useState('');
+  const [nameInput, setNameInput] = useState(''); // Estado local para o input de nome
   const [isInitialSetupModalVisible, setIsInitialSetupModalVisible] = useState(false);
 
-  // Carregar o nome do usuário se já existir (ex: se ele voltou para esta tela)
   useEffect(() => {
-    const loadUserName = async () => {
-      const storedName = await AsyncStorage.getItem(USER_NAME_KEY);
-      if (storedName) {
-        setUserName(storedName);
-      }
-    };
-    loadUserName();
-  }, []);
+    // Preenche o input com o nome do contexto se já existir 
+    // (ex: se o usuário voltou para esta tela ou se o app foi resetado e o contexto carregou um nome vazio)
+    if (contextUserName) {
+      setNameInput(contextUserName);
+    }
+  }, [contextUserName]); // Roda quando o userName do contexto mudar
 
 
   const handleStart = async () => {
-    if (userName.trim() === '') {
+    if (nameInput.trim() === '') {
       Alert.alert('Nome Necessário', 'Por favor, insira seu nome para começar.');
       return;
     }
-    console.log('WelcomeScreen: Nome do Usuário a ser salvo:', userName);
+    console.log('WelcomeScreen: Nome do Usuário a ser salvo:', nameInput);
     try {
-      await AsyncStorage.setItem(USER_NAME_KEY, userName);
-      console.log('WelcomeScreen: Nome salvo no AsyncStorage');
+      // Usa a função do contexto para salvar o nome no AsyncStorage e atualizar o estado do contexto
+      await setUserNameInContext(nameInput.trim()); 
+      console.log('WelcomeScreen: Nome salvo no AsyncStorage e no Contexto.');
       setIsInitialSetupModalVisible(true); // Abre o modal de configuração inicial
     } catch (error) {
-      console.error('WelcomeScreen: Erro ao salvar nome no AsyncStorage:', error);
+      console.error('WelcomeScreen: Erro ao salvar nome:', error);
       Alert.alert('Erro', 'Não foi possível salvar seu nome. Tente novamente.');
     }
   };
@@ -89,12 +90,12 @@ export default function WelcomeScreen() {
           style={styles.input}
           placeholder="Digite seu nome aqui"
           placeholderTextColor={colors.placeholder}
-          value={userName}
-          onChangeText={setUserName}
+          value={nameInput} 
+          onChangeText={setNameInput} 
           autoCapitalize="words"
         />
         <GradientButton
-          title="Iniciar Configuração" // Título do botão atualizado
+          title="Iniciar Configuração" 
           onPress={handleStart}
           type="primary"
           style={styles.button}
@@ -104,14 +105,11 @@ export default function WelcomeScreen() {
       <InitialSetupModal
         visible={isInitialSetupModalVisible}
         onClose={() => setIsInitialSetupModalVisible(false)}
-        onSaveSetup={handleModalSave} // Chama a função que usa o contexto
-        // Passando os valores atuais do contexto (que devem ser 0 após um reset)
-        // ou os valores da última configuração se o usuário estiver editando via "Preferências"
-        // No fluxo de welcome após um reset, esperamos que sejam 0.
-        currentInitialBalance={initialAccountBalance}
-        currentInitialInvested={totalInvested}
-        currentCreditCardLimit={creditCardLimit}
-        currentCreditCardBill={creditCardBill}
+        onSaveSetup={handleModalSave} 
+        currentInitialBalance={initialAccountBalance} 
+        currentInitialInvested={totalInvested}       
+        currentCreditCardLimit={creditCardLimit}     
+        currentCreditCardBill={creditCardBill}       
       />
     </KeyboardAvoidingView>
   );
@@ -120,14 +118,13 @@ export default function WelcomeScreen() {
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   keyboardAvoidingContainer: {
     flex: 1,
-    backgroundColor: colors.background, // Fundo para KAV
+    backgroundColor: colors.background, 
   },
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    // backgroundColor removido daqui, já está no KAV
   },
   title: {
     fontSize: 32,
