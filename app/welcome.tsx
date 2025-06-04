@@ -3,76 +3,77 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+
 import GradientButton from '../components/GradientButton'; // Ajuste o caminho se necessário
 import InitialSetupModal from '../components/InitialSetupModal'; // Ajuste o caminho se necessário
 import { ThemeColors } from '../constants/colors'; // Ajuste o caminho se necessário
-import { InitialDataContextType, useInitialData } from '../contexts/InitialDataContext'; // Importar o hook e o tipo
+import { InitialDataContextType, useInitialData } from '../contexts/InitialDataContext';
 import { useTheme } from '../contexts/ThemeContext'; // Ajuste o caminho se necessário
 
-// Chave do AsyncStorage para o status de setup completo
-const SETUP_COMPLETE_KEY = '@SuxenFinance:setupComplete';
-// A USER_NAME_KEY já está definida e usada no InitialDataContext
+// Chave do AsyncStorage para o status de setup completo (PADRONIZADA)
+const SETUP_COMPLETE_KEY = '@GasteiApp:setupComplete';
+// A chave para userName é gerenciada pelo InitialDataContext (@SuxenFinance:userName ou @GasteiApp:userName)
 
 export default function WelcomeScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const styles = getStyles(colors);
-
-  // Pega as funções e dados do contexto
+  
   const { 
-    handleSaveInitialSetup: saveInitialDataInContext, 
-    setUserNameInContext, // Função para salvar o nome no contexto e AsyncStorage
-    initialAccountBalance, 
+    handleSaveInitialSetup: saveContextInitialData, // Renomeado para clareza
+    setUserNameInContext,
+    userName: contextUserName, // Para pré-preencher, se disponível
+    // Pegando os valores atuais do contexto para passar ao InitialSetupModal
+    initialAccountBalance,
     totalInvested,
     creditCardLimit,
     creditCardBill,
-    userName: contextUserName // Pega o userName do contexto para preencher o input se já existir
-  } = useInitialData() as InitialDataContextType; // Usando asserção de tipo
+  } = useInitialData() as InitialDataContextType; 
 
-  const [nameInput, setNameInput] = useState(''); // Estado local para o input de nome
+  const styles = getThemedStyles(colors); // getThemedStyles precisa ser definida abaixo
+
+  const [nameInput, setNameInput] = useState('');
   const [isInitialSetupModalVisible, setIsInitialSetupModalVisible] = useState(false);
 
   useEffect(() => {
-    // Preenche o input com o nome do contexto se já existir 
-    // (ex: se o usuário voltou para esta tela ou se o app foi resetado e o contexto carregou um nome vazio)
+    // Preenche o input com o nome do contexto se já existir
     if (contextUserName) {
       setNameInput(contextUserName);
     }
-  }, [contextUserName]); // Roda quando o userName do contexto mudar
+  }, [contextUserName]);
 
 
-  const handleStart = async () => {
+  const handleStartConfiguration = async () => {
     if (nameInput.trim() === '') {
       Alert.alert('Nome Necessário', 'Por favor, insira seu nome para começar.');
       return;
     }
-    console.log('WelcomeScreen: Nome do Usuário a ser salvo:', nameInput);
     try {
-      // Usa a função do contexto para salvar o nome no AsyncStorage e atualizar o estado do contexto
       await setUserNameInContext(nameInput.trim()); 
-      console.log('WelcomeScreen: Nome salvo no AsyncStorage e no Contexto.');
+      console.log('[WelcomeScreen] Nome salvo no contexto e AsyncStorage.');
       setIsInitialSetupModalVisible(true); // Abre o modal de configuração inicial
     } catch (error) {
-      console.error('WelcomeScreen: Erro ao salvar nome:', error);
+      console.error('[WelcomeScreen] Erro ao salvar nome:', error);
       Alert.alert('Erro', 'Não foi possível salvar seu nome. Tente novamente.');
     }
   };
 
-  // Esta função será chamada pelo InitialSetupModal
-  const handleModalSave = async (data: { balance: number; invested: number; limit: number; initialBill: number }) => {
-    console.log('WelcomeScreen: Dados da configuração inicial recebidos do modal:', data);
+  // Esta função será chamada pelo InitialSetupModal através da prop onSaveSetup
+  const handleSaveSetupData = async (data: { balance: number; invested: number; limit: number; initialBill: number }) => {
+    console.log('[WelcomeScreen] Dados da configuração inicial recebidos do modal:', data);
     try {
-      // Chama a função do contexto para salvar os dados financeiros iniciais
-      await saveInitialDataInContext(data); 
-      console.log('WelcomeScreen: Dados financeiros iniciais salvos via contexto.');
+      // Salva os dados financeiros no contexto (e AsyncStorage via contexto)
+      await saveContextInitialData(data); 
+      console.log('[WelcomeScreen] Dados financeiros iniciais salvos via contexto.');
 
+      // Marca o setup como completo no AsyncStorage
       await AsyncStorage.setItem(SETUP_COMPLETE_KEY, 'true');
-      console.log('WelcomeScreen: Setup marcado como completo.');
+      console.log('[WelcomeScreen] Setup marcado como completo com a chave:', SETUP_COMPLETE_KEY);
       
       setIsInitialSetupModalVisible(false);
+      // Redireciona para a home, substituindo a tela de welcome/setup do histórico de navegação
       router.replace('/(tabs)/home'); 
     } catch (error) {
-      console.error('WelcomeScreen: Erro ao salvar configuração inicial completa:', error);
+      console.error('[WelcomeScreen] Erro ao salvar configuração inicial completa:', error);
       Alert.alert('Erro', 'Não foi possível salvar a configuração. Tente novamente.');
     }
   };
@@ -82,10 +83,16 @@ export default function WelcomeScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoidingContainer}
     >
-      <Stack.Screen options={{ title: 'Bem-vindo(a)!', headerTitleAlign: 'center', headerBackVisible: false }} />
+      <Stack.Screen 
+        options={{ 
+          title: 'Bem-vindo(a) ao Gastei!', 
+          headerTitleAlign: 'center', 
+          headerBackVisible: false // Não deve haver como voltar daqui no fluxo inicial
+        }} 
+      />
       <View style={styles.container}>
         <Text style={styles.title}>Olá!</Text>
-        <Text style={styles.subtitle}>Qual é o seu nome?</Text>
+        <Text style={styles.subtitle}>Para começarmos, qual é o seu nome?</Text>
         <TextInput
           style={styles.input}
           placeholder="Digite seu nome aqui"
@@ -93,19 +100,23 @@ export default function WelcomeScreen() {
           value={nameInput} 
           onChangeText={setNameInput} 
           autoCapitalize="words"
+          onSubmitEditing={handleStartConfiguration} // Permite submeter com "Enter" do teclado
         />
         <GradientButton
           title="Iniciar Configuração" 
-          onPress={handleStart}
+          onPress={handleStartConfiguration}
           type="primary"
           style={styles.button}
         />
       </View>
 
+      {/* Modal de Configuração Inicial */}
       <InitialSetupModal
         visible={isInitialSetupModalVisible}
         onClose={() => setIsInitialSetupModalVisible(false)}
-        onSaveSetup={handleModalSave} 
+        onSaveSetup={handleSaveSetupData} // Passando a função correta
+        // Passando os valores atuais do contexto (que seriam 0 na primeira vez)
+        // para o modal, caso ele precise deles como default ou para edição.
         currentInitialBalance={initialAccountBalance} 
         currentInitialInvested={totalInvested}       
         currentCreditCardLimit={creditCardLimit}     
@@ -115,7 +126,8 @@ export default function WelcomeScreen() {
   );
 }
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
+// Definição da função de estilos (adapte conforme seus estilos reais)
+const getThemedStyles = (colors: ThemeColors) => StyleSheet.create({
   keyboardAvoidingContainer: {
     flex: 1,
     backgroundColor: colors.background, 

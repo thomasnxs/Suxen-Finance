@@ -121,27 +121,35 @@ export default function DadosScreen() {
   }, [chartDisplayDate, allTransactions, isLoading]);
 
   const summaryData = useMemo(() => {
+    const initialSummary = {
+      totalIncome: 0,
+      totalExpenses: 0,
+      totalInvestments: 0,
+      totalSpentOnCard: 0,
+      totalSpentFromBalance: 0,
+      expensesByCategory: {} as { [key: string]: number },
+    };
+
     return filteredTransactions.reduce((acc, transaction) => {
-        if (transaction.type === 'expense') {
-            acc.totalExpenses += transaction.amount;
-            if (transaction.paymentMethod === 'cartao') {
-                acc.totalSpentOnCard += transaction.amount;
-            } else if (transaction.paymentMethod === 'saldo') {
-                acc.totalSpentFromBalance += transaction.amount;
-            }
-        } else if (transaction.type === 'income') {
-            acc.totalIncome += transaction.amount;
-        } else if (transaction.type === 'investment') {
-            acc.totalInvestments += transaction.amount;
+      if (transaction.type === 'expense') {
+        acc.totalExpenses += transaction.amount;
+        
+        if (transaction.paymentMethod === 'cartao') {
+          acc.totalSpentOnCard += transaction.amount;
+        } else if (transaction.paymentMethod === 'saldo') {
+          acc.totalSpentFromBalance += transaction.amount;
         }
-        return acc;
-    }, { 
-        totalIncome: 0, 
-        totalExpenses: 0, 
-        totalInvestments: 0,
-        totalSpentOnCard: 0,
-        totalSpentFromBalance: 0
-    });
+
+        const category = transaction.category || 'Outros';
+        acc.expensesByCategory[category] = (acc.expensesByCategory[category] || 0) + transaction.amount;
+
+      } else if (transaction.type === 'income') {
+        acc.totalIncome += transaction.amount;
+      } else if (transaction.type === 'investment') {
+        acc.totalInvestments += transaction.amount;
+      }
+      return acc;
+    }, initialSummary);
   }, [filteredTransactions]);
 
   const chartKitData = useMemo(() => {
@@ -192,7 +200,6 @@ export default function DadosScreen() {
     color: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
   };
 
-  // Componente reutilizável para os botões de período
   const PeriodSelectorButtons = () => (
     <View style={styles.periodSelector}>
       <View style={styles.buttonWrapper}><Button title="Todas" onPress={() => setSelectedPeriod('all')} disabled={selectedPeriod === 'all' || isLoading} color={Platform.OS === 'ios' ? colors.primary : undefined} /></View>
@@ -206,11 +213,10 @@ export default function DadosScreen() {
     <ScrollView style={styles.scrollViewContainer} contentContainerStyle={styles.scrollContentContainer}>
       <Stack.Screen options={{ title: 'Dados e Relatórios' }} />
 
-      {/* CARD DE RESUMO - COM OS BOTÕES DE PERÍODO */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Resumo do Período</Text>
-        <PeriodSelectorButtons /> {/* <--- BOTÕES DE PERÍODO AQUI */}
-        <View> {/* Container para as linhas de resumo */}
+        <PeriodSelectorButtons /> 
+        <View> 
           <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Entradas:</Text>
               <Text style={[styles.summaryAmount, styles.incomeAmount]}>
@@ -239,7 +245,24 @@ export default function DadosScreen() {
                 </Text>
             </View>
           )}
-          <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+
+          {summaryData.totalExpenses > 0 && Object.keys(summaryData.expensesByCategory).length > 0 && (
+            <View style={styles.categoryExpensesContainer}>
+              <Text style={styles.categoryExpensesTitle}>Por Categoria:</Text>
+              {Object.entries(summaryData.expensesByCategory)
+                .sort(([, a], [, b]) => b - a) 
+                .map(([category, total]) => (
+                  <View key={category} style={styles.summaryDetailRow}>
+                    <Text style={styles.summaryCategoryLabel}>↪ {category}:</Text>
+                    <Text style={[styles.summaryCategoryAmount, styles.expenseAmount]}>
+                      {formatCurrency(total)}
+                    </Text>
+                  </View>
+                ))}
+            </View>
+          )}
+
+          <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}> 
               <Text style={styles.summaryLabel}>Investimentos:</Text>
               <Text style={[styles.summaryAmount, styles.investmentAmount]}>
                   {formatCurrency(summaryData.totalInvestments)}
@@ -248,7 +271,6 @@ export default function DadosScreen() {
         </View>
       </View>
       
-      {/* CARD DO GRÁFICO */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Gastos Mensais por Categoria</Text>
         <View style={styles.monthSelectorContainer}>
@@ -281,10 +303,9 @@ export default function DadosScreen() {
         </View>
       </View>
 
-      {/* CARD DO HISTÓRICO - AGORA TAMBÉM COM OS BOTÕES DE PERÍODO */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Histórico de Transações ({selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)})</Text>
-        <PeriodSelectorButtons /> {/* <--- BOTÕES DE PERÍODO AQUI TAMBÉM */}
+        <PeriodSelectorButtons /> 
         {filteredTransactions.length === 0 && !isLoading ? (
           <View style={styles.centeredMessageContainerList}><Text style={styles.emptyListText}>Nenhuma transação para este período.</Text></View>
         ) : (
@@ -298,7 +319,6 @@ export default function DadosScreen() {
           />
         )}
       </View>
-      
     </ScrollView>
   );
 }
@@ -332,7 +352,11 @@ const getThemedStyles = (colors: ThemeColors) => StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   summaryLabel: { fontSize: 16, color: colors.secondaryText },
   summaryAmount: { fontSize: 16, fontWeight: 'bold' },
-  summaryDetailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingLeft: 15, borderBottomWidth: 1, borderBottomColor: colors.border, },
+  summaryDetailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingLeft: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
   summaryDetailLabel: { fontSize: 14, color: colors.secondaryText },
   summaryDetailAmount: { fontSize: 14, fontWeight: '500' },
+  categoryExpensesContainer: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
+  categoryExpensesTitle: { fontSize: 14, fontWeight: '600', color: colors.secondaryText, marginBottom: 4, paddingLeft: 15 }, // Ajustado o estilo
+  summaryCategoryLabel: { fontSize: 14, color: colors.secondaryText, flex: 1 },
+  summaryCategoryAmount: { fontSize: 14, fontWeight: '500' },
 });

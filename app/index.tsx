@@ -2,56 +2,106 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect, SplashScreen } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext'; // Para estilizar o loading
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'; // Adicionado Text e StyleSheet
+import { useTheme } from '../contexts/ThemeContext'; // Ajuste o caminho se seu ThemeContext estiver em outro lugar
 
-const SETUP_COMPLETE_KEY = '@SuxenFinance:setupComplete';
+// Chaves do AsyncStorage com o novo prefixo para consistência
+const TERMOS_ACEITOS_KEY = '@GasteiApp:termosAceitos';
+const SETUP_COMPLETE_KEY = '@GasteiApp:setupComplete';
 
-export default function AppRootOrWelcome() {
-  const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null); // null = carregando, true/false = estado definido
-  const { colors } = useTheme(); // Para o ActivityIndicator
+export default function AppRootRouter() {
+  const [status, setStatus] = useState<'loading' | 'needsTerms' | 'needsWelcome' | 'goToHome'>('loading');
+  const { colors } = useTheme(); // Para estilizar o loading
 
   useEffect(() => {
-    // Impedir que a splash screen desapareça automaticamente até termos decidido a rota
-    SplashScreen.preventAutoHideAsync(); 
+    SplashScreen.preventAutoHideAsync();
 
-    const checkSetupStatus = async () => {
+    const checkAppStatus = async () => {
+      let termsAccepted = false;
+      let setupComplete = false;
+
       try {
-        const setupStatus = await AsyncStorage.getItem(SETUP_COMPLETE_KEY);
-        if (setupStatus === 'true') {
-          setIsSetupComplete(true);
-        } else {
-          setIsSetupComplete(false);
+        const termsAcceptedValue = await AsyncStorage.getItem(TERMOS_ACEITOS_KEY);
+        if (termsAcceptedValue === 'true') {
+          termsAccepted = true;
+        }
+        console.log(`[AppRootRouter] Termos aceitos? ${termsAcceptedValue}`);
+
+        // Só verifica o setup se os termos já foram aceitos
+        if (termsAccepted) {
+          const setupCompleteValue = await AsyncStorage.getItem(SETUP_COMPLETE_KEY);
+          if (setupCompleteValue === 'true') {
+            setupComplete = true;
+          }
+          console.log(`[AppRootRouter] Setup completo? ${setupCompleteValue}`);
         }
       } catch (e) {
-        console.error("Erro ao verificar status do setup:", e);
-        setIsSetupComplete(false); // Em caso de erro, assume que o setup não foi feito
+        console.error("[AppRootRouter] Erro ao ler AsyncStorage para status do app:", e);
+        // Em caso de erro, força o fluxo de termos para segurança, pois não podemos assumir nada.
+        setStatus('needsTerms');
+        return;
+      }
+
+      if (!termsAccepted) {
+        console.log("[AppRootRouter] Decisão: Redirecionar para /termos");
+        setStatus('needsTerms');
+      } else if (!setupComplete) {
+        console.log("[AppRootRouter] Decisão: Termos aceitos, redirecionar para /welcome");
+        setStatus('needsWelcome');
+      } else {
+        console.log("[AppRootRouter] Decisão: Termos aceitos e setup completo. Redirecionar para /home");
+        setStatus('goToHome');
       }
     };
 
-    checkSetupStatus();
-  }, []);
+    checkAppStatus();
+  }, []); // Array de dependências vazio para rodar apenas uma vez na montagem
 
   useEffect(() => {
-    if (isSetupComplete !== null) {
-      SplashScreen.hideAsync(); // Agora podemos esconder a splash screen
+    // Esconde a splash screen assim que o status de carregamento inicial for resolvido
+    if (status !== 'loading') {
+      SplashScreen.hideAsync();
     }
-  }, [isSetupComplete]);
+  }, [status]);
 
-  if (isSetupComplete === null) {
-    // Tela de carregamento enquanto verifica o AsyncStorage
+  // Estilos definidos aqui para o componente de Loading e Fallback
+  const styles = StyleSheet.create({
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors?.background || '#ffffff', // Fallback de cor
+    },
+    fallbackText: {
+      color: colors?.text || '#000000', // Fallback de cor
+      fontSize: 16,
+    }
+  });
+
+  if (status === 'loading') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors?.background || '#ffffff' }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors?.primary || '#0000ff'} />
       </View>
     );
   }
 
-  if (isSetupComplete) {
-    // Se o setup está completo, redireciona para a aba home
-    return <Redirect href="/(tabs)/home" />;
-  } else {
-    // Se o setup não está completo, redireciona para a tela de boas-vindas
+  if (status === 'needsTerms') {
+    return <Redirect href="/termos" />;
+  }
+
+  if (status === 'needsWelcome') {
     return <Redirect href="/welcome" />;
   }
+
+  if (status === 'goToHome') {
+    return <Redirect href="/(tabs)/home" />;
+  }
+
+  // Fallback para um estado inesperado (teoricamente não deve ser alcançado)
+  return (
+    <View style={styles.loadingContainer}>
+      <Text style={styles.fallbackText}>Erro inesperado no roteamento inicial.</Text>
+    </View>
+  );
 }

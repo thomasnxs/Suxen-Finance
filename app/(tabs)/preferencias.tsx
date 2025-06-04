@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, View, useColorScheme } from 'react-native';
 
 import GradientButton from '../../components/GradientButton';
 import InitialSetupModal from '../../components/InitialSetupModal';
@@ -10,19 +10,26 @@ import { ThemeColors } from '../../constants/colors';
 import { InitialDataContextType, useInitialData } from '../../contexts/InitialDataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
+// ATENÇÃO: Revise esta lista cuidadosamente.
+// Adicionadas as novas chaves e atualizada a de setup.
+// As chaves @SuxenFinance e @GastosApp podem ser padronizadas para @GasteiApp: em um próximo passo.
 const ALL_APP_DATA_KEYS = [
+  // Chaves financeiras - manter ou padronizar para @GasteiApp:
   '@GastosApp:initialAccountBalance',
   '@GastosApp:totalInvested',
   '@GastosApp:creditCardLimit',
   '@GastosApp:creditCardBill',
   '@GastosApp:transactions',
-  '@SuxenFinance:theme',
-  '@SuxenFinance:userName',
-  '@SuxenFinance:setupComplete'
+  // Chaves de configuração legadas/atuais - idealmente padronizar para @GasteiApp:
+  '@SuxenFinance:theme',    // -> Deveria ser @GasteiApp:theme
+  '@SuxenFinance:userName', // -> Deveria ser @GasteiApp:userName
+  // Chaves do novo fluxo
+  '@GasteiApp:setupComplete', // ATUALIZADA
+  '@GasteiApp:termosAceitos'  // NOVA
 ];
 
 export default function PreferenciasScreen() {
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors, isDark, toggleTheme, setTheme } = useTheme(); // Adicionado setTheme se quiser um seletor mais explícito
   const { 
     initialAccountBalance, 
     totalInvested, 
@@ -30,10 +37,11 @@ export default function PreferenciasScreen() {
     creditCardBill,
     handleSaveInitialSetup, 
     isLoadingData, 
-    forceReloadAllInitialData // PEGANDO A NOVA FUNÇÃO DO CONTEXTO
+    forceReloadAllInitialData,
+    // Adicione setUserNameInContext se for padronizar a chave de userName e quiser resetá-la aqui
   } = useInitialData() as InitialDataContextType; 
   
-  const styles = getStyles(colors, isDark);
+  const styles = getThemedStyles(colors, isDark);
   const router = useRouter();
   const [isInitialSetupModalVisible, setIsInitialSetupModalVisible] = useState(false);
 
@@ -63,18 +71,33 @@ export default function PreferenciasScreen() {
   };
 
   const handleResetAppData = async () => {
-    console.log("Preferencias: Iniciando reset de todos os dados do app.");
+    console.log("Preferencias: Iniciando reset de todos os dados do app. Chaves a serem removidas:", ALL_APP_DATA_KEYS);
     try {
+      // Limpa os contextos ANTES de apagar do AsyncStorage e redirecionar
+      // Para ThemeContext (reverte para o tema do sistema ou 'light')
+      await AsyncStorage.removeItem('@GasteiApp:theme'); // Ou a chave que você usa para o tema
+      setTheme(Platform.OS === 'ios' ? (useColorScheme() ?? 'light') : 'light'); // Reajusta o tema na UI
+
+      // Para InitialDataContext
+      await forceReloadAllInitialData(); // Isso já tentará ler do AsyncStorage (que estará vazio para esses itens)
+                                        // e setará os valores para os defaults (0, string vazia)
+
+      // Remove todas as chaves especificadas
       await AsyncStorage.multiRemove(ALL_APP_DATA_KEYS);
       console.log("Preferencias: Dados do AsyncStorage removidos.");
       
-      await forceReloadAllInitialData(); // <<--- CHAMANDO A FUNÇÃO DO CONTEXTO
-      console.log("Preferencias: InitialDataContext forçado a recarregar.");
+      // O forceReloadAllInitialData já deve ter resetado o estado do contexto para os padrões.
+      // Se o nome do usuário não for resetado por forceReloadAllInitialData (porque é uma chave separada),
+      // você precisaria chamar uma função para resetá-lo no contexto ou diretamente aqui:
+      // if (setUserNameInContext) { // Supondo que você adicione setUserNameInContext ao contexto
+      //   await setUserNameInContext('');
+      // }
+
 
       Alert.alert(
         "Dados Resetados",
-        "Todos os dados do aplicativo foram apagados.", // Mensagem simplificada
-        [{ text: "OK", onPress: () => router.replace('/welcome') }] 
+        "Todos os dados do aplicativo foram apagados e as configurações revertidas.",
+        [{ text: "OK", onPress: () => router.replace('/') }] // Redireciona para o index, que fará o fluxo de termos -> welcome
       );
     } catch (error) {
       console.error("Preferencias: Erro ao resetar dados do app:", error);
@@ -96,7 +119,7 @@ export default function PreferenciasScreen() {
           disabled={isLoadingData}
         />
         <Text style={styles.descriptionText}>
-          Altere seu saldo inicial, total investido, limite do cartão e fatura inicial definida no setup.
+          Altere seu saldo inicial, total investido, limite do cartão e fatura inicial.
         </Text>
       </View>
 
@@ -120,6 +143,23 @@ export default function PreferenciasScreen() {
 
       <View style={styles.separator} />
 
+      {/* NOVA SEÇÃO PARA TERMOS E OUTRAS INFORMAÇÕES */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Sobre e Legal</Text>
+        <GradientButton
+          title="Termos de Uso e Privacidade"
+          onPress={() => router.push({ pathname: '/termos', params: { source: 'preferencias' }})}
+          type="default" // Ou um 'info' se você tiver
+          style={styles.button}
+        />
+        <Text style={styles.descriptionText}>
+          Leia novamente os termos de uso e a política de privacidade do aplicativo.
+        </Text>
+        {/* Futuramente, aqui pode entrar "Apoie o Desenvolvedor", "Backup/Restore", etc. */}
+      </View>
+
+      <View style={styles.separator} />
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Aplicativo</Text>
         <GradientButton
@@ -129,11 +169,10 @@ export default function PreferenciasScreen() {
           style={styles.button}
         />
         <Text style={styles.descriptionText}>
-          Apaga todos os seus dados financeiros e configurações, retornando o app ao estado inicial.
+          Apaga todos os seus dados financeiros e configurações, retornando o app ao estado inicial (termos de uso).
         </Text>
       </View>
 
-      {/* InitialSetupModal é renderizado aqui, como antes */}
       <InitialSetupModal
         visible={isInitialSetupModalVisible}
         onClose={() => setIsInitialSetupModalVisible(false)}
@@ -147,7 +186,9 @@ export default function PreferenciasScreen() {
   );
 }
 
-const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
+// --- Função getThemedStyles (COMO ESTAVA ANTES, COM OS ESTILOS NECESSÁRIOS) ---
+// Certifique-se de que esta função está completa e correta
+const getThemedStyles = (colors: ThemeColors, isDark?: boolean) => StyleSheet.create({
   scrollView: {
     flex: 1,
     backgroundColor: colors.background,
@@ -161,11 +202,11 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     borderRadius: 10,
     padding: 20,
     marginBottom: 20,
-    shadowColor: isDark ? '#000' : '#555',
+    shadowColor: isDark ? '#000' : '#555', // Ajustado para usar isDark
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.3 : 0.15,
-    shadowRadius: isDark ? 3 : 2,
-    elevation: isDark ? 4 : 3,
+    shadowOpacity: isDark ? 0.3 : 0.15,   // Ajustado para usar isDark
+    shadowRadius: isDark ? 3 : 2,        // Ajustado para usar isDark
+    elevation: isDark ? 4 : 3,           // Ajustado para usar isDark
   },
   sectionTitle: {
     fontSize: 20,
@@ -183,8 +224,9 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
     textAlign: 'center',
     marginTop: 5,
   },
-  separator: {
+  separator: { // Se quiser uma linha visível, ajuste height e adicione backgroundColor
     height: 0, 
+    marginVertical: 10, // Apenas para espaçamento se height for 0
   },
   themeSwitchContainer: {
     flexDirection: 'row',
@@ -195,9 +237,11 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   themeLabel: {
     fontSize: 16,
     marginHorizontal: 10,
+    // A cor será condicional no JSX
   },
   activeThemeLabel: {
     fontWeight: 'bold',
+    // A cor primária será aplicada no JSX
   },
   switch: {
     transform: Platform.OS === 'ios' ? [{ scaleX: 0.9 }, { scaleY: 0.9 }] : [], 
