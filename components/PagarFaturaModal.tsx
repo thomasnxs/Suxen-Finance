@@ -3,11 +3,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Modal as RNModal, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ThemeColors } from '../constants/colors';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatCurrency } from '../utils/formatters'; // <--- ADICIONADO IMPORT
 import GradientButton from './GradientButton';
 
-const formatCurrency = (value: number): string => {
-  return `R$ ${value.toFixed(2).replace('.', ',')}`;
-};
+// const formatCurrency = (value: number): string => { // <--- REMOVIDA DEFINIÇÃO LOCAL
+//   return `R$ ${value.toFixed(2).replace('.', ',')}`;
+// };
 
 interface PagarFaturaModalProps {
   visible: boolean;
@@ -17,19 +18,18 @@ interface PagarFaturaModalProps {
 }
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
-  keyboardAvoidingContainer: { 
-    flex: 1, 
-    justifyContent: 'center', 
+  keyboardAvoidingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  centeredView: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.6)', // Este é o fundo escuro translúcido
-    paddingVertical: 0, // Adicionado padding para evitar que o modal fique colado nas bordas
-    paddingHorizontal: 25 // Adicionado padding horizontal para evitar que o modal fique colado nas bordas  
-
+    paddingVertical: 0,
+    paddingHorizontal: 25
   },
   modalView: {
     margin: 20,
@@ -43,37 +43,35 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    width: '100%', 
-    // minHeight e justifyContent removidos para deixar o conteúdo ditar a altura
-    // até o maxHeight, se necessário (mas para este modal, provavelmente não)
+    width: '100%',
   },
-  modalTitle: { 
+  modalTitle: {
     fontSize: 22, // Aumentado
-    fontWeight: 'bold', 
-    color: colors.text, 
+    fontWeight: 'bold',
+    color: colors.text,
     marginBottom: 20, // Aumentado
-    textAlign: 'center' 
+    textAlign: 'center'
   },
-  infoText: { 
+  infoText: {
     fontSize: 16, // Aumentado
-    color: colors.secondaryText, 
+    color: colors.secondaryText,
     marginBottom: 25, // Aumentado
-    textAlign: 'center' 
+    textAlign: 'center'
   },
-  input: { 
-    height: 55, 
-    borderColor: colors.border, 
-    borderWidth: 1, 
+  input: {
+    height: 55,
+    borderColor: colors.border,
+    borderWidth: 1,
     marginBottom: 30, // Aumentado
-    paddingHorizontal: 15, 
-    borderRadius: 10, 
-    backgroundColor: colors.background, 
-    color: colors.text, 
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+    color: colors.text,
     fontSize: 22, // Aumentado
-    textAlign: 'center' 
+    textAlign: 'center'
   },
-  buttonContainer: { 
-    flexDirection: 'row', 
+  buttonContainer: {
+    flexDirection: 'row',
     marginTop: 10, // Espaço acima dos botões
     marginLeft: -20, // Ajuste para alinhar com o input
     gap: 16,
@@ -90,21 +88,26 @@ const PagarFaturaModal: React.FC<PagarFaturaModalProps> = ({ visible, onClose, o
   useEffect(() => {
     if (visible) {
       const billString = currentBill > 0 ? currentBill.toFixed(2).replace('.', ',') : '';
-      setAmount(billString);
+      // Usando formatCurrency importado para consistência, embora o original aqui fosse string direta
+      // setAmount(billString); // Mantendo o pré-preenchimento com a string formatada localmente
+      // Ou para usar a string de fallback de formatCurrency se currentBill for <=0
+      setAmount(currentBill > 0 ? formatCurrency(currentBill).replace('R$ ', '') : '');
+
+
       setTimeout(() => {
         textInputRef.current?.focus();
-      }, 100); 
+      }, 100);
     } else {
       setAmount('');
     }
   }, [visible, currentBill]);
 
   const handleAmountChange = (text: string) => {
-    let cleanedText = text.replace(/[^0-9.,]/g, ''); 
+    let cleanedText = text.replace(/[^0-9.,]/g, '');
     const parts = cleanedText.split(/[.,]/);
     if (parts.length > 1) {
       const integerPart = parts[0];
-      let decimalPart = parts.slice(1).join(''); 
+      let decimalPart = parts.slice(1).join('');
       if (decimalPart.length > 2) decimalPart = decimalPart.substring(0, 2);
       const originalSeparator = cleanedText.includes(',') && cleanedText.indexOf(',') < (cleanedText.includes('.') ? cleanedText.indexOf('.') : Infinity) ? ',' : (cleanedText.includes('.') ? '.' : '');
       cleanedText = integerPart + (originalSeparator ? originalSeparator : (decimalPart.length > 0 ? '.' : '')) + decimalPart;
@@ -119,26 +122,24 @@ const PagarFaturaModal: React.FC<PagarFaturaModalProps> = ({ visible, onClose, o
       return;
     }
     if (numericAmount > currentBill) {
-        Alert.alert(
-            "Valor Excede a Fatura", 
-            `O valor informado (${formatCurrency(numericAmount)}) é maior que a fatura atual (${formatCurrency(currentBill)}). Por favor, insira um valor igual ou inferior.`
-        ); 
-        return;
+      Alert.alert(
+        "Valor Excede a Fatura",
+        `O valor informado (${formatCurrency(numericAmount)}) é maior que a fatura atual (${formatCurrency(currentBill)}). Por favor, insira um valor igual ou inferior.`
+      );
+      return;
     }
     onConfirmPagamento(numericAmount);
   };
 
   return (
     <RNModal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardAvoidingContainer}
-        // Ajuste este offset conforme necessário, especialmente se houver um header global acima do modal
-        keyboardVerticalOffset={Platform.OS === "ios" ? -10 : 0} 
+        keyboardVerticalOffset={Platform.OS === "ios" ? -10 : 0}
       >
-        <View style={styles.centeredView}> 
+        <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            {/* Não precisamos de ScrollView aqui, pois o conteúdo é pequeno e fixo */}
             <Text style={styles.modalTitle}>Pagar Fatura do Cartão</Text>
             <Text style={styles.infoText}>Fatura atual: {formatCurrency(currentBill)}</Text>
             <TextInput

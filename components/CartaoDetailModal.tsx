@@ -3,6 +3,7 @@ import React from 'react';
 import { Modal as RNModal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ThemeColors } from '../constants/colors';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatCurrency } from '../utils/formatters'; // <--- ADICIONADO IMPORT
 import GradientButton from './GradientButton';
 
 interface CartaoDetailModalProps {
@@ -13,9 +14,9 @@ interface CartaoDetailModalProps {
   currentCreditCardBill: number;
 }
 
-const formatCurrency = (value: number) => { // Função auxiliar, pode ser movida para utils
-  return `R$ ${value.toFixed(2).replace('.', ',')}`;
-};
+// const formatCurrency = (value: number) => { // <--- REMOVIDA DEFINIÇÃO LOCAL
+//   return `R$ ${value.toFixed(2).replace('.', ',')}`;
+// };
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)' },
@@ -81,13 +82,13 @@ const CartaoDetailModal: React.FC<CartaoDetailModalProps> = ({
                 </View>
               </>
             )}
-            {!creditCardLimit && creditCardLimit <= 0 &&(
-                 <View style={styles.detailRow}>
-                 <Text style={styles.detailLabel}>Limite Total:</Text>
-                 <Text style={styles.detailValue}>Não definido</Text>
-               </View>
+            {/* Simplificando a lógica para exibir 'Não definido' */}
+            {creditCardLimit <= 0 && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Limite Total:</Text>
+                <Text style={styles.detailValue}>Não definido</Text>
+              </View>
             )}
-
 
             <View style={styles.buttonContainer}>
               <GradientButton

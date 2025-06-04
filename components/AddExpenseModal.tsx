@@ -98,12 +98,13 @@ const getStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   paymentLabel: { fontSize: 16, color: colors.secondaryText },
   activeText: { fontWeight: 'bold', color: colors.primary },
   buttonContainer: { 
-    flexDirection: 'row', 
+    flexDirection: 'row', // se ao 
     justifyContent: 'space-between', 
     marginTop: 15, // Reduzido
     // paddingBottom: 5, // Adicionado para dar espaço se não estiver no ScrollView
   },
-  buttonSpacer: { width: 5 }
+  buttonSpacer: { width: 5 }, 
+
 });
 
 const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ visible, onClose, onAddExpense }) => {
