@@ -1,99 +1,113 @@
 // GastosApp/constants/colors.ts
 
 export interface ThemeColors {
-  background: string;
-  card: string;
-  text: string;
-  secondaryText: string;
-  border: string;
-  primary: string;
-  accent: string;
-  success: string;
-  danger: string;
-  warning: string;
-  info: string;
-  invested: string;
-  disabled: string;
-  placeholder: string;
-  switchThumb: string;
-  switchTrackFalse: string;
-  switchTrackTrue: string;
-  headerBackground: string;
-  headerText: string;
-  icon: string;
-  isDark?: boolean;
+  background: string;
+  card: string;
+  text: string;
+  secondaryText: string;
+  border: string;
+  primary: string;
+  accent: string; // Cor de destaque geral
+  success: string;
+  danger: string;
+  warning: string;
+  info: string;    // Pode ser usado para informações, ou como outra cor de destaque
+  invested: string;
+  disabled: string;
+  placeholder: string;
+  switchThumb: string;
+  switchTrackFalse: string;
+  switchTrackTrue: string;
+  headerBackground: string;
+  headerText: string;
+  icon: string;
+  isDark?: boolean;
 
-  // Cores transparentes adicionadas anteriormente
+  // Cores transparentes
   dangerTransparent: string;
-  warningTransparent: string; 
-  primaryTransparent: string; 
+  warningTransparent: string;
+  primaryTransparent: string;
   successTransparent: string;
   investedTransparent: string;
+  infoTransparent: string; // Adicionada para a cor 'info'
 
-  // Nova cor para o separador
-  separatorLine: string; 
+  separatorLine: string;
 }
 
+// Sua paleta principal
+const PALETTE_GREEN = '#16C47F';
+const PALETTE_YELLOW = '#FFD65A';
+const PALETTE_ORANGE = '#FF9D23';
+const PALETTE_RED_CORAL = '#F93827';
+
 export const lightColors: ThemeColors = {
-  background: '#e9ecef',
-  card: '#ffffff',
-  text: '#212529',
-  secondaryText: '#6c757d',
-  border: '#dee2e6',
-  primary: '#007bff', 
-  accent: '#6f42c1',
-  success: 'green', 
-  danger: 'red', 
-  warning: 'orangered', 
-  info: 'dodgerblue',
-  invested: '#8A2BE2', 
-  disabled: '#adb5bd',
-  placeholder: '#888',
-  switchThumb: '#f4f3f4',
-  switchTrackFalse: '#767577',
-  switchTrackTrue: '#81b0ff',
-  headerBackground: '#f8f9fa',
-  headerText: '#212529',
-  icon: '#495057',
-  isDark: false,
+  background: '#F4F6F8',         // Cinza muito claro para o fundo
+  card: '#FFFFFF',               // Cards brancos
+  text: '#2c3e50',               // Texto principal (cinza escuro azulado)
+  secondaryText: '#7f8c8d',      // Texto secundário (cinza médio)
+  border: '#bdc3c7',             // Bordas (cinza claro)
+  
+  primary: PALETTE_GREEN,
+  accent: PALETTE_YELLOW,         // Amarelo como cor de destaque geral
+  success: PALETTE_GREEN,         // Verde para sucesso
+  danger: PALETTE_RED_CORAL,      // Vermelho/Coral para perigo
+  warning: PALETTE_ORANGE,        // Laranja para aviso
+  info: PALETTE_YELLOW,           // Amarelo para informação (ou azul se preferir, mas usando sua paleta)
+  invested: PALETTE_YELLOW,       // Amarelo para investimentos
 
-  dangerTransparent: '#ff000033', 
-  warningTransparent: '#FF450033', 
-  primaryTransparent: '#007bff33', 
-  successTransparent: '#00800033', 
-  investedTransparent: '#8A2BE233',
+  disabled: '#cccccc',            // Cinza claro para desabilitado
+  placeholder: '#a0a0a0',         // Cinza para placeholder
+  switchThumb: '#FFFFFF',
+  switchTrackFalse: '#bdc3c7',
+  switchTrackTrue: PALETTE_GREEN,
+  headerBackground: PALETTE_GREEN, // Header com cor primária
+  headerText: '#FFFFFF',          // Texto do header branco para contraste
+  icon: PALETTE_GREEN,            // Ícones com cor primária por padrão
 
-  separatorLine: 'rgba(0, 0, 0, 0.15)', // Cinza bem claro/transparente para tema claro
+  isDark: false,
+
+  dangerTransparent: `${PALETTE_RED_CORAL}33`,
+  warningTransparent: `${PALETTE_ORANGE}33`,
+  primaryTransparent: `${PALETTE_GREEN}33`,
+  successTransparent: `${PALETTE_GREEN}33`,
+  investedTransparent: `${PALETTE_YELLOW}33`,
+  infoTransparent: `${PALETTE_YELLOW}33`,
+
+  separatorLine: 'rgba(0, 0, 0, 0.1)', 
 };
 
 export const darkColors: ThemeColors = {
-  background: '#1c1c1e',
-  card: '#2c2c2e',
-  text: '#f0f0f0',
-  secondaryText: '#8e8e93',
-  border: '#3a3a3c',
-  primary: '#0a84ff', 
-  accent: '#bf5af2',
-  success: '#30d158', 
-  danger: '#ff453a',  
-  warning: '#ff9f0a',  
-  info: '#0a84ff',
-  invested: '#c98bff', 
-  disabled: '#505054',
-  placeholder: '#6e6e73',
-  switchThumb: '#e9e9eb',
-  switchTrackFalse: '#39393d',
-  switchTrackTrue: '#0a84ff',
-  headerBackground: '#1c1c1e',
-  headerText: '#ffffff',
-  icon: '#aeaeb2',
-  isDark: true,
+  background: '#1A1D21',         // Fundo bem escuro
+  card: '#282C34',               // Cards um pouco mais claros que o fundo
+  text: '#E1E1E1',               // Texto principal claro
+  secondaryText: '#909399',      // Texto secundário (cinza claro)
+  border: '#3A3F4B',             // Bordas (cinza escuro)
 
-  dangerTransparent: '#ff453a33',
-  warningTransparent: '#ff9f0a33',
-  primaryTransparent: '#0a84ff33',
-  successTransparent: '#30d15833',
-  investedTransparent: '#c98bff33',
+  primary: PALETTE_GREEN,         // Verde pode se manter vibrante
+  accent: PALETTE_YELLOW,         // Amarelo pode se manter vibrante
+  success: PALETTE_GREEN,         // Verde para sucesso
+  danger: PALETTE_RED_CORAL,      // Vermelho/Coral para perigo
+  warning: PALETTE_ORANGE,        // Laranja para aviso
+  info: PALETTE_YELLOW,           // Amarelo para informação
+  invested: PALETTE_YELLOW,       // Amarelo para investimentos
 
-  separatorLine: 'rgba(255, 255, 255, 0.2)', // Branco transparente para tema escuro
+  disabled: '#4B515D',            // Cinza escuro para desabilitado
+  placeholder: '#6C737E',         // Cinza médio-escuro para placeholder
+  switchThumb: '#E1E1E1',
+  switchTrackFalse: '#505054',
+  switchTrackTrue: PALETTE_GREEN,
+  headerBackground: '#21252B',    // Header escuro
+  headerText: '#FFFFFF',          // Texto do header branco
+  icon: PALETTE_GREEN,            // Ícones com cor primária
+
+  isDark: true,
+
+  dangerTransparent: `${PALETTE_RED_CORAL}4D`, // 30% de opacidade para fundos escuros
+  warningTransparent: `${PALETTE_ORANGE}4D`,
+  primaryTransparent: `${PALETTE_GREEN}4D`,
+  successTransparent: `${PALETTE_GREEN}4D`,
+  investedTransparent: `${PALETTE_YELLOW}4D`,
+  infoTransparent: `${PALETTE_YELLOW}4D`,
+
+  separatorLine: 'rgba(255, 255, 255, 0.15)',
 };

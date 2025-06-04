@@ -33,7 +33,7 @@ function RootStackLayout() {
       <Stack.Screen
         name="(tabs)" // Corresponde ao grupo de abas em app/(tabs)/_layout.tsx
         options={{
-          title: 'Nome do App', // Este título aparecerá no header acima das abas
+          title: 'Gastei!', // Este título aparecerá no header acima das abas
           headerShown: true,
         }}
       />
