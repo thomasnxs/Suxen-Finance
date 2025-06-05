@@ -2,106 +2,108 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect, SplashScreen } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'; // Adicionado Text e StyleSheet
-import { useTheme } from '../contexts/ThemeContext'; // Ajuste o caminho se seu ThemeContext estiver em outro lugar
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext'; // Ajuste o caminho se necessário
 
-// Chaves do AsyncStorage com o novo prefixo para consistência
 const TERMOS_ACEITOS_KEY = '@GasteiApp:termosAceitos';
 const SETUP_COMPLETE_KEY = '@GasteiApp:setupComplete';
 
 export default function AppRootRouter() {
   const [status, setStatus] = useState<'loading' | 'needsTerms' | 'needsWelcome' | 'goToHome'>('loading');
-  const { colors } = useTheme(); // Para estilizar o loading
+  const { colors } = useTheme();
 
   useEffect(() => {
     SplashScreen.preventAutoHideAsync();
+    console.log("[AppRootRouter] preventAutoHideAsync chamado.");
 
-    const checkAppStatus = async () => {
+    const checkAppStatusAndHideSplash = async () => {
       let termsAccepted = false;
       let setupComplete = false;
+      let finalStatus: 'needsTerms' | 'needsWelcome' | 'goToHome' = 'needsTerms'; // Default para o fluxo inicial
 
       try {
         const termsAcceptedValue = await AsyncStorage.getItem(TERMOS_ACEITOS_KEY);
         if (termsAcceptedValue === 'true') {
           termsAccepted = true;
         }
-        console.log(`[AppRootRouter] Termos aceitos? ${termsAcceptedValue}`);
+        console.log(`[AppRootRouter] Termos aceitos (Storage)? ${termsAcceptedValue}`);
 
-        // Só verifica o setup se os termos já foram aceitos
         if (termsAccepted) {
           const setupCompleteValue = await AsyncStorage.getItem(SETUP_COMPLETE_KEY);
           if (setupCompleteValue === 'true') {
             setupComplete = true;
           }
-          console.log(`[AppRootRouter] Setup completo? ${setupCompleteValue}`);
+          console.log(`[AppRootRouter] Setup completo (Storage)? ${setupCompleteValue}`);
         }
       } catch (e) {
-        console.error("[AppRootRouter] Erro ao ler AsyncStorage para status do app:", e);
-        // Em caso de erro, força o fluxo de termos para segurança, pois não podemos assumir nada.
-        setStatus('needsTerms');
-        return;
+        console.error("[AppRootRouter] Erro ao ler AsyncStorage:", e);
+        // Em caso de erro, o default 'needsTerms' será usado, e a splash escondida abaixo
       }
 
+      // Determina o status final
       if (!termsAccepted) {
-        console.log("[AppRootRouter] Decisão: Redirecionar para /termos");
-        setStatus('needsTerms');
+        finalStatus = 'needsTerms';
       } else if (!setupComplete) {
-        console.log("[AppRootRouter] Decisão: Termos aceitos, redirecionar para /welcome");
-        setStatus('needsWelcome');
+        finalStatus = 'needsWelcome';
       } else {
-        console.log("[AppRootRouter] Decisão: Termos aceitos e setup completo. Redirecionar para /home");
-        setStatus('goToHome');
+        finalStatus = 'goToHome';
       }
+      
+      // Esconde a splash ANTES de definir o estado que causa o redirect
+      // Isso pode ajudar a evitar um "flash" da tela de loading se o AsyncStorage for muito rápido
+      await SplashScreen.hideAsync();
+      console.log("[AppRootRouter] Splash nativa escondida.");
+      
+      setStatus(finalStatus);
+      console.log(`[AppRootRouter] Status final definido para: ${finalStatus}`);
     };
 
-    checkAppStatus();
-  }, []); // Array de dependências vazio para rodar apenas uma vez na montagem
+    checkAppStatusAndHideSplash();
+  }, []); // Roda apenas uma vez na montagem
 
-  useEffect(() => {
-    // Esconde a splash screen assim que o status de carregamento inicial for resolvido
-    if (status !== 'loading') {
-      SplashScreen.hideAsync();
-    }
-  }, [status]);
-
-  // Estilos definidos aqui para o componente de Loading e Fallback
   const styles = StyleSheet.create({
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: colors?.background || '#ffffff', // Fallback de cor
+      backgroundColor: colors?.background || '#FFFFFF', // Fallback seguro
     },
-    fallbackText: {
-      color: colors?.text || '#000000', // Fallback de cor
+    text: { // Renomeado de fallbackText para apenas text
+      color: colors?.text || '#000000', // Fallback seguro
       fontSize: 16,
     }
   });
 
+  // Enquanto o status é 'loading' (antes do checkAppStatusAndHideSplash definir um estado final),
+  // mostramos o ActivityIndicator.
   if (status === 'loading') {
+    console.log("[AppRootRouter] Renderizando: Tela de Loading (ActivityIndicator).");
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors?.primary || '#0000ff'} />
+        <ActivityIndicator size="large" color={colors?.primary || '#0000FF'} />
       </View>
     );
   }
 
+  // Redirecionamentos baseados no status final
   if (status === 'needsTerms') {
+    console.log("[AppRootRouter] Renderizando: Redirect para /termos.");
     return <Redirect href="/termos" />;
   }
-
   if (status === 'needsWelcome') {
+    console.log("[AppRootRouter] Renderizando: Redirect para /welcome.");
     return <Redirect href="/welcome" />;
   }
-
   if (status === 'goToHome') {
+    console.log("[AppRootRouter] Renderizando: Redirect para /(tabs)/home.");
     return <Redirect href="/(tabs)/home" />;
   }
-
-  // Fallback para um estado inesperado (teoricamente não deve ser alcançado)
+  
+  // Fallback (não deve ser alcançado em condições normais)
+  console.log("[AppRootRouter] Renderizando: Tela de Fallback (erro de roteamento).");
   return (
     <View style={styles.loadingContainer}>
-      <Text style={styles.fallbackText}>Erro inesperado no roteamento inicial.</Text>
+      <Text style={styles.text}>Erro no roteamento.</Text>
     </View>
   );
 }

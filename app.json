@@ -2,7 +2,49 @@
   "expo": {
     "name": "Gastei!",
     "slug": "gastei-app",
-    
-    "scheme": "gastosapp"
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/gastei_splash.png",
+    "userInterfaceStyle": "automatic",
+    "primaryColor": "#FFFFFF",
+    "splash": {
+      "image": "./assets/images/gastei_splash.png",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.suxen.gasteiapp",
+      "splash": {
+        "image": "./assets/images/gastei_splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.seunome.gasteiapp",
+      "splash": {
+        "image": "./assets/images/gastei_splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

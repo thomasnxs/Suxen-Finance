@@ -97,7 +97,7 @@ export const darkColors: ThemeColors = {
   switchTrackFalse: '#505054',
   switchTrackTrue: PALETTE_GREEN,
   headerBackground: '#21252B',    // Header escuro
-  headerText: '#FFFFFF',          // Texto do header branco
+  headerText: '#16C47F',          // Texto do header branco
   icon: PALETTE_GREEN,            // Ícones com cor primária
 
   isDark: true,
