@@ -129,26 +129,22 @@ export default function DadosScreen() {
       totalSpentFromBalance: 0,
       expensesByCategory: {} as { [key: string]: number },
     };
-
     return filteredTransactions.reduce((acc, transaction) => {
-      if (transaction.type === 'expense') {
-        acc.totalExpenses += transaction.amount;
-        
-        if (transaction.paymentMethod === 'cartao') {
-          acc.totalSpentOnCard += transaction.amount;
-        } else if (transaction.paymentMethod === 'saldo') {
-          acc.totalSpentFromBalance += transaction.amount;
+        if (transaction.type === 'expense') {
+            acc.totalExpenses += transaction.amount;
+            if (transaction.paymentMethod === 'cartao') {
+                acc.totalSpentOnCard += transaction.amount;
+            } else if (transaction.paymentMethod === 'saldo') {
+                acc.totalSpentFromBalance += transaction.amount;
+            }
+            const category = transaction.category || 'Outros';
+            acc.expensesByCategory[category] = (acc.expensesByCategory[category] || 0) + transaction.amount;
+        } else if (transaction.type === 'income') {
+            acc.totalIncome += transaction.amount;
+        } else if (transaction.type === 'investment') {
+            acc.totalInvestments += transaction.amount;
         }
-
-        const category = transaction.category || 'Outros';
-        acc.expensesByCategory[category] = (acc.expensesByCategory[category] || 0) + transaction.amount;
-
-      } else if (transaction.type === 'income') {
-        acc.totalIncome += transaction.amount;
-      } else if (transaction.type === 'investment') {
-        acc.totalInvestments += transaction.amount;
-      }
-      return acc;
+        return acc;
     }, initialSummary);
   }, [filteredTransactions]);
 
@@ -196,7 +192,6 @@ export default function DadosScreen() {
     backgroundColor: colors.card,
     backgroundGradientFrom: colors.card,
     backgroundGradientTo: colors.card,
-    decimalPlaces: 2,
     color: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
   };
 
@@ -215,8 +210,8 @@ export default function DadosScreen() {
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Resumo do Período</Text>
-        <PeriodSelectorButtons /> 
-        <View> 
+        <PeriodSelectorButtons />
+        <View>
           <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Entradas:</Text>
               <Text style={[styles.summaryAmount, styles.incomeAmount]}>
@@ -290,22 +285,34 @@ export default function DadosScreen() {
           ) : chartKitData.length === 0 ? (
             <Text style={styles.placeholderText}>Sem dados de gastos para este mês.</Text>
           ) : (
-            <PieChart
-              data={chartKitData}
-              width={screenWidth - (styles.sectionCard.padding * 2) - 20} 
-              height={220}
-              chartConfig={chartConfig}
-              accessor={"amount"}
-              backgroundColor={"transparent"}
-              paddingLeft={"15"}
-            />
+            <>
+              <PieChart
+                data={chartKitData}
+                width={screenWidth - (styles.sectionCard.padding * 2) - 20}
+                height={220}
+                chartConfig={chartConfig}
+                accessor={"amount"}
+                backgroundColor={"transparent"}
+                paddingLeft={"15"}
+                hasLegend={false} // Desabilitamos a legenda padrão para criar a nossa
+              />
+              {/* NOSSA LEGENDA CUSTOMIZADA */}
+              <View style={styles.legendContainer}>
+                {chartKitData.map((item) => (
+                  <View key={item.name} style={styles.legendItem}>
+                    <View style={[styles.legendColorBox, { backgroundColor: item.color }]} />
+                    <Text style={styles.legendText}>{item.name} ({formatCurrency(item.amount)})</Text>
+                  </View>
+                ))}
+              </View>
+            </>
           )}
         </View>
       </View>
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Histórico de Transações ({selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)})</Text>
-        <PeriodSelectorButtons /> 
+        <PeriodSelectorButtons />
         {filteredTransactions.length === 0 && !isLoading ? (
           <View style={styles.centeredMessageContainerList}><Text style={styles.emptyListText}>Nenhuma transação para este período.</Text></View>
         ) : (
@@ -352,11 +359,36 @@ const getThemedStyles = (colors: ThemeColors) => StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   summaryLabel: { fontSize: 16, color: colors.secondaryText },
   summaryAmount: { fontSize: 16, fontWeight: 'bold' },
-  summaryDetailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingLeft: 15, borderBottomWidth: 1, borderBottomColor: colors.border },
+  summaryDetailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingLeft: 15, borderBottomWidth: 1, borderBottomColor: colors.border, },
   summaryDetailLabel: { fontSize: 14, color: colors.secondaryText },
   summaryDetailAmount: { fontSize: 14, fontWeight: '500' },
   categoryExpensesContainer: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  categoryExpensesTitle: { fontSize: 14, fontWeight: '600', color: colors.secondaryText, marginBottom: 4, paddingLeft: 15 }, // Ajustado o estilo
+  categoryExpensesTitle: { fontSize: 14, fontWeight: '600', color: colors.secondaryText, marginBottom: 4, paddingLeft: 15 },
   summaryCategoryLabel: { fontSize: 14, color: colors.secondaryText, flex: 1 },
   summaryCategoryAmount: { fontSize: 14, fontWeight: '500' },
+  // --- NOVOS ESTILOS PARA A LEGENDA DO GRÁFICO ---
+  legendContainer: {
+    marginTop: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 15,
+    marginBottom: 10,
+  },
+  legendColorBox: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 13,
+    color: colors.text,
+  },
 });

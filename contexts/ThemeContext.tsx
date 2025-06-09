@@ -4,6 +4,8 @@ import React, { createContext, ReactNode, useContext, useEffect, useState } from
 import { useColorScheme } from 'react-native';
 import { darkColors, lightColors, ThemeColors } from '../constants/colors';
 
+const THEME_STORAGE_KEY = '@GasteiApp:theme'; // <-- CHAVE PADRONIZADA AQUI
+
 interface ThemeContextData {
   theme: 'light' | 'dark';
   colors: ThemeColors;
@@ -12,13 +14,12 @@ interface ThemeContextData {
   setTheme: (theme: 'light' | 'dark') => void;
 }
 
-// Fornecendo um valor default mais completo para o contexto, embora o provider vá sobrescrever.
 const defaultThemeContextValue: ThemeContextData = {
   theme: 'light',
   colors: lightColors,
   isDark: false,
-  toggleTheme: () => console.warn('toggleTheme called outside of ThemeProvider'),
-  setTheme: () => console.warn('setTheme called outside of ThemeProvider'),
+  toggleTheme: () => console.warn('toggleTheme chamado fora do ThemeProvider'),
+  setTheme: () => console.warn('setTheme chamado fora do ThemeProvider'),
 };
 
 const ThemeContext = createContext<ThemeContextData>(defaultThemeContextValue);
@@ -31,13 +32,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     const loadTheme = async () => {
       try {
-        const storedTheme = await AsyncStorage.getItem('@SuxenFinance:theme');
+        const storedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY); // Usa a nova constante
         if (storedTheme === 'light' || storedTheme === 'dark') {
           setThemeState(storedTheme);
         } else if (systemScheme) {
           setThemeState(systemScheme);
         }
-        // Se não houver tema salvo e nem do sistema, mantém o default 'light' que foi setado no useState.
       } catch (error) {
         console.error('Falha ao carregar tema do AsyncStorage', error);
         if (systemScheme) setThemeState(systemScheme);
@@ -46,24 +46,23 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     loadTheme();
   }, [systemScheme]);
 
-  const toggleTheme = async () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setThemeState(newTheme);
+  const saveThemePreference = async (newTheme: 'light' | 'dark') => {
     try {
-      await AsyncStorage.setItem('@SuxenFinance:theme', newTheme);
+      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme); // Usa a nova constante
     } catch (error) {
       console.error('Falha ao salvar tema no AsyncStorage', error);
     }
   };
 
-  // Função para definir um tema específico, caso precise no futuro (ex: configurações do usuário)
-  const setTheme = async (newTheme: 'light' | 'dark') => {
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
     setThemeState(newTheme);
-    try {
-      await AsyncStorage.setItem('@SuxenFinance:theme', newTheme);
-    } catch (error) {
-      console.error('Falha ao salvar tema no AsyncStorage', error);
-    }
+    saveThemePreference(newTheme);
+  };
+
+  const setTheme = (newTheme: 'light' | 'dark') => {
+    setThemeState(newTheme);
+    saveThemePreference(newTheme);
   };
 
   const currentColors = theme === 'light' ? lightColors : darkColors;
@@ -78,10 +77,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
 export const useTheme = (): ThemeContextData => {
   const context = useContext(ThemeContext);
-  // O valor default do context garante que context nunca seja undefined aqui se o hook for usado corretamente.
-  // Mas uma verificação extra não faz mal se você for muito cauteloso ou se o valor default fosse undefined.
   if (context === undefined) {
-     throw new Error('useTheme deve ser usado dentro de um ThemeProvider');
+    throw new Error('useTheme deve ser usado dentro de um ThemeProvider');
   }
   return context;
 };
