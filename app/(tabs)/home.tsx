@@ -36,13 +36,9 @@ import {
   saveTransactions
 } from '../../services/storage';
 import { Transaction } from '../../types';
-import { formatCurrency } from '../../utils/formatters'; // <--- ADICIONADO IMPORT
+import { formatCurrency } from '../../utils/formatters';
 
 const IOS_HEADER_OFFSET = 64;
-
-// const formatCurrency = (value: number): string => { // <--- REMOVIDA DEFINIÇÃO LOCAL
-//   return `R$ ${value.toFixed(2).replace('.', ',')}`;
-// };
 
 const AddIncomeModal: React.FC<{visible: boolean, onClose: () => void, onAddIncome: (amount: number, description: string) => void}> =
  ({visible, onClose, onAddIncome}) => {
@@ -79,7 +75,7 @@ const AddIncomeModal: React.FC<{visible: boolean, onClose: () => void, onAddInco
     }
   };
 
-  const themedModalStyles = getModalStyles(colors); // Assumindo que getModalStyles está definida no final do arquivo
+  const themedModalStyles = getModalStyles(colors);
   return (
     <RNModal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={themedModalStyles.keyboardAvoidingContainer} >
@@ -145,28 +141,34 @@ export default function HomeScreen() {
     });
   }, [navigation, colors]);
 
+  // CORREÇÃO APLICADA AQUI:
+  // Este useEffect agora roda apenas uma vez quando o contexto de dados iniciais termina de carregar.
+  // Ele não depende mais de 'totalInvested' ou outros valores que mudam durante o uso do app.
   useEffect(() => {
     const loadInitialScreenData = async () => {
+      // Se os dados do contexto (como saldo inicial, etc.) ainda estão carregando, esperamos.
       if (isLoadingInitialData) {
-        console.log("HomeScreen Mount: Aguardando dados iniciais do contexto...");
-        return;
+        console.log("HomeScreen: Aguardando dados iniciais do contexto...");
+        return; 
       }
       setIsLoadingTransactions(true);
-      console.log("HomeScreen Mount: Carregando transações. Dados Iniciais Prontos:", {initialAccountBalance, initialCreditCardBill, totalInvested, creditCardLimit, userName});
+      console.log("HomeScreen: Contexto pronto, carregando transações do AsyncStorage...");
       try {
         const loadedTransactions = await loadTransactions();
         setTransactions(loadedTransactions);
       } catch (error) {
-        console.error("HomeScreen Mount: Falha ao carregar transações:", error);
+        console.error("HomeScreen: Falha ao carregar transações:", error);
         setTransactions([]);
       } finally {
         setIsLoadingTransactions(false);
-        console.log("HomeScreen Mount: Carregamento de transações finalizado.");
+        console.log("HomeScreen: Carregamento de transações finalizado.");
       }
     };
     loadInitialScreenData();
-  }, [isLoadingInitialData, initialAccountBalance, initialCreditCardBill, totalInvested, creditCardLimit, userName]); // Adicionado dependências que afetam o log
+  }, [isLoadingInitialData]); // <-- AQUI ESTÁ A MUDANÇA PRINCIPAL!
 
+  // Este useEffect recalcula os saldos e a fatura sempre que as transações mudam
+  // ou quando os valores base (do setup inicial) mudam.
   useEffect(() => {
     if (isLoadingInitialData || isLoadingTransactions) {
       return;
@@ -206,9 +208,10 @@ export default function HomeScreen() {
   }, [transactions, initialAccountBalance, initialCreditCardBill, isLoadingInitialData, isLoadingTransactions]);
 
 
-  useEffect(() => {
+  // Este useEffect salva as transações no AsyncStorage sempre que a lista muda.
+  useEffect(() => { 
     if (!isLoadingTransactions && !isLoadingInitialData) {
-      saveTransactions(transactions);
+      saveTransactions(transactions); 
       console.log("EFFECT_SAVE_TX: Transações salvas.");
     }
   }, [transactions, isLoadingTransactions, isLoadingInitialData]);
@@ -236,9 +239,9 @@ export default function HomeScreen() {
       notes: data.notes,
     };
     setTransactions(prev => [newExpense, ...prev]);
-    setIsAddExpenseModalVisible(false);
+    setIsAddExpenseModalVisible(false); 
   };
-
+  
   type AddTransactionData = Omit<Transaction, 'id' | 'date' | 'type'> & { categoryDetails?: ExpenseCategory; notes?: string };
   const handleAddTransaction = async (transactionData: AddTransactionData, isInvestmentFromFab: boolean = false) => {
     const isInvestmentCategory = transactionData.categoryDetails?.type === 'investment';
@@ -256,20 +259,20 @@ export default function HomeScreen() {
       category: transactionData.categoryDetails?.name || (isInvestmentFromFab ? "Investimento (App)" : (isCreditCardPayment ? "Pagamento de Fatura CC" : transactionData.description)),
       notes: transactionData.notes,
     };
-
-    setTransactions(prev => [newTransaction, ...prev]);
+    
+    setTransactions(prev => [newTransaction, ...prev]); 
 
     if (newTransaction.type === 'investment' && newTransaction.paymentMethod === 'para_investimento') {
       console.log("ADD_TRANSACTION (INVESTMENT): totalInvested ANTES da atualização:", totalInvested, "Valor a adicionar:", newTransaction.amount);
       const newTotalInvested = totalInvested + newTransaction.amount;
-      await updateTotalInvestedOnly(newTotalInvested);
+      await updateTotalInvestedOnly(newTotalInvested); 
       console.log("ADD_TRANSACTION (INVESTMENT): totalInvested DEPOIS da atualização (contexto):", newTotalInvested);
-    }
+    } 
   };
 
   const handleDeleteTransaction = async (transactionId: string) => { const transactionToDelete = transactions.find(tr => tr.id === transactionId); if (!transactionToDelete) { Alert.alert("Erro", "Transação não encontrada."); return; } Alert.alert( "Confirmar Exclusão", `Excluir "${transactionToDelete.description}"?`, [ { text: "Cancelar", style: "cancel" }, { text: "Excluir", style: "destructive", onPress: async () => { setTransactions(prevTransactions => prevTransactions.filter(tr => tr.id !== transactionToDelete.id) ); if (transactionToDelete.type === 'investment' && transactionToDelete.paymentMethod === 'para_investimento') { const newTotalInvested = totalInvested - transactionToDelete.amount; await updateTotalInvestedOnly(newTotalInvested); } if (isTransactionDetailModalVisible) { setIsTransactionDetailModalVisible(false); setSelectedTransactionForDetail(null); } if (isEditModalVisible) { setIsEditModalVisible(false); setTransactionToEdit(null); } } } ], { cancelable: true } ); };
   const handleOpenTransactionDetailModal = (transaction: Transaction) => { setSelectedTransactionForDetail(transaction); setIsTransactionDetailModalVisible(true); };
-  const handleOpenEditModal = (transaction: Transaction) => { setIsTransactionDetailModalVisible(false);  setTransactionToEdit(transaction); setIsEditModalVisible(true); };
+  const handleOpenEditModal = (transaction: Transaction) => { setIsTransactionDetailModalVisible(false);  setTransactionToEdit(transaction); setIsEditModalVisible(true); };
   const handleSaveEditedTransaction = async (editedTransaction: Transaction) => { const originalTransaction = transactions.find(t => t.id === editedTransaction.id); if (!originalTransaction) { Alert.alert("Erro", "Transação original não encontrada."); setIsEditModalVisible(false); setTransactionToEdit(null); return; } let tempTotalInvested = totalInvested; if (originalTransaction.type === 'investment' && editedTransaction.type !== 'investment') { tempTotalInvested -= originalTransaction.amount; } else if (originalTransaction.type !== 'investment' && editedTransaction.type === 'investment') { tempTotalInvested += editedTransaction.amount; } else if (originalTransaction.type === 'investment' && editedTransaction.type === 'investment' && originalTransaction.paymentMethod === 'para_investimento' && editedTransaction.paymentMethod === 'para_investimento') { tempTotalInvested = tempTotalInvested - originalTransaction.amount + editedTransaction.amount; } if (totalInvested !== tempTotalInvested) { await updateTotalInvestedOnly(tempTotalInvested); } setTransactions(prev => prev.map(t => t.id === editedTransaction.id ? editedTransaction : t)); setIsEditModalVisible(false); setTransactionToEdit(null); Alert.alert("Sucesso", "Transação atualizada!"); };
   const handleOpenGastoModal = () => { setShowActionButtons(false); setIsAddExpenseModalVisible(true); };
   const handleOpenEntradaModal = () => { setShowActionButtons(false); setIsAddIncomeModalVisible(true); };
@@ -278,15 +281,13 @@ export default function HomeScreen() {
   const handlePagarFaturaPress = () => { setIsCartaoDetailModalVisible(false); setIsPagarFaturaModalVisible(true); };
   const handleConfirmPagamentoFatura = async (paymentAmount: number) => { if (paymentAmount <= 0) { Alert.alert("Valor Inválido", "O valor do pagamento deve ser positivo."); setIsPagarFaturaModalVisible(false); return; } const categoriaPagamentoFatura = commonExpenseSuggestions.find( cat => cat.type === 'cc_payment' ); if (!categoriaPagamentoFatura) { Alert.alert("Erro de Configuração", "Categoria 'Pagamento de Fatura CC' não encontrada."); setIsPagarFaturaModalVisible(false); return; } await handleAddTransaction({ description: categoriaPagamentoFatura.name, amount: paymentAmount, categoryDetails: categoriaPagamentoFatura, notes: "Pagamento da fatura do cartão", }); setIsPagarFaturaModalVisible(false); Alert.alert("Sucesso", "Pagamento da fatura registrado!"); };
   const handleOpenResgatarInvestimentoModal = () => { setShowActionButtons(false); setIsResgatarInvestimentoModalVisible(true); };
-  const handleConfirmResgateInvestimento = async (amountToWithdraw: number) => { if (amountToWithdraw <= 0) { Alert.alert("Valor Inválido", "Resgate positivo."); return; } if (amountToWithdraw > totalInvested) { Alert.alert("Saldo Insuficiente", `Não pode resgatar ${formatCurrency(amountToWithdraw)} de ${formatCurrency(totalInvested)} investidos.`); return; } const newTotalInvested = totalInvested - amountToWithdraw; await updateTotalInvestedOnly(newTotalInvested);  handleAddIncome(amountToWithdraw, "Resgate de Investimento"); setIsResgatarInvestimentoModalVisible(false); Alert.alert("Sucesso", `Resgate de ${formatCurrency(amountToWithdraw)} realizado!`); };
+  const handleConfirmResgateInvestimento = async (amountToWithdraw: number) => { if (amountToWithdraw <= 0) { Alert.alert("Valor Inválido", "Resgate positivo."); return; } if (amountToWithdraw > totalInvested) { Alert.alert("Saldo Insuficiente", `Não pode resgatar ${formatCurrency(amountToWithdraw)} de ${formatCurrency(totalInvested)} investidos.`); return; } const newTotalInvested = totalInvested - amountToWithdraw; await updateTotalInvestedOnly(newTotalInvested);  handleAddIncome(amountToWithdraw, "Resgate de Investimento"); setIsResgatarInvestimentoModalVisible(false); Alert.alert("Sucesso", `Resgate de ${formatCurrency(amountToWithdraw)} realizado!`); };
   const handleOpenAdjustBalanceModal = () => { setShowActionButtons(false); setIsAdjustBalanceModalVisible(true); };
   const handleConfirmBalanceAdjustment = (newActualBalance: number) => { const adjustmentAmount = newActualBalance - currentBalance; console.log(`AJUSTE_SALDO: Saldo App: ${currentBalance}, Saldo Correto: ${newActualBalance}, Diferença: ${adjustmentAmount}`); if (adjustmentAmount === 0) { Alert.alert("Sem Mudanças", "O saldo informado é igual ao saldo atual no aplicativo."); setIsAdjustBalanceModalVisible(false); return; } const transactionType: Transaction['type'] = adjustmentAmount > 0 ? 'income' : 'expense'; const transactionAmount = Math.abs(adjustmentAmount); const description = adjustmentAmount > 0 ? "Ajuste de Saldo (Entrada)" : "Ajuste de Saldo (Saída)"; const adjustmentTransaction: Transaction = { id: Date.now().toString() + Math.random().toString(36).substr(2, 9), date: new Date().toISOString(), description: description, amount: transactionAmount, type: transactionType, paymentMethod: 'saldo', category: 'Ajustes', notes: `Saldo anterior no app: ${formatCurrency(currentBalance)}. Saldo ajustado para: ${formatCurrency(newActualBalance)}.`, }; setTransactions(prev => [adjustmentTransaction, ...prev]); setIsAdjustBalanceModalVisible(false); Alert.alert("Sucesso", `Saldo ajustado para ${formatCurrency(newActualBalance)}.`); };
-
 
   const themedAppStyles = getThemedStyles(colors, isDark);
   const listHeader = (
     <>
-      {/* CORREÇÃO APLICADA AQUI: Usar Boolean(userName) ou ternário */}
       {Boolean(userName) && !isLoadingInitialData && !isLoadingTransactions ? (
         <View style={[themedAppStyles.cardBase, themedAppStyles.welcomeCard, { marginTop: 15 }]}>
           <Text style={themedAppStyles.welcomeText}>Olá, {userName}! 👋</Text>
@@ -301,7 +302,6 @@ export default function HomeScreen() {
         onOpenCartaoDetail={handleOpenCartaoDetailModal}
         onOpenResgatarInvestimentoModal={handleOpenResgatarInvestimentoModal}
       />
-
       <Text style={themedAppStyles.transactionHistoryTitle}>Histórico de Transações</Text>
     </>
   );
@@ -317,39 +317,36 @@ export default function HomeScreen() {
         <ExpenseList transactions={transactions} onOpenDetailModal={handleOpenTransactionDetailModal} headerContent={listHeader} />
       </KeyboardAvoidingView>
 
-      {/* RENDERIZAÇÃO CONDICIONAL DOS BOTÕES FAB - Usando ternário */}
-      {showActionButtons ? (
-        <View style={themedAppStyles.fabActionsContainer}>
+      {showActionButtons ? ( 
+        <View style={themedAppStyles.fabActionsContainer}> 
           <TouchableOpacity style={themedAppStyles.fabActionItem} onPress={handleOpenGastoModal}><Text style={[themedAppStyles.fabActionText, {color: colors.text}]}>Gasto</Text><View style={[themedAppStyles.fabActionButton, { backgroundColor: colors.danger }]}><FontAwesome name="shopping-cart" size={20} color="#FFF" /></View></TouchableOpacity>
           <TouchableOpacity style={themedAppStyles.fabActionItem} onPress={handleOpenEntradaModal}><Text style={[themedAppStyles.fabActionText, {color: colors.text}]}>Entrada</Text><View style={[themedAppStyles.fabActionButton, { backgroundColor: colors.success }]}><FontAwesome name="plus" size={20} color="#FFF" /></View></TouchableOpacity>
           <TouchableOpacity style={themedAppStyles.fabActionItem} onPress={handleOpenInvestimentoModal}><Text style={[themedAppStyles.fabActionText, {color: colors.text}]}>Investimento</Text><View style={[themedAppStyles.fabActionButton, { backgroundColor: colors.invested }]}><FontAwesome name="line-chart" size={20} color="#FFF" /></View></TouchableOpacity>
-        </View>
+        </View> 
       ) : null}
-      <TouchableOpacity style={[themedAppStyles.fabMain, { backgroundColor: colors.primary }]} onPress={() => setShowActionButtons(!showActionButtons)} activeOpacity={0.8} >
-        <FontAwesome name={showActionButtons ? "times" : "plus"} size={24} color="#FFF" />
+      <TouchableOpacity style={[themedAppStyles.fabMain, { backgroundColor: colors.primary }]} onPress={() => setShowActionButtons(!showActionButtons)} activeOpacity={0.8} > 
+        <FontAwesome name={showActionButtons ? "times" : "plus"} size={24} color="#FFF" /> 
       </TouchableOpacity>
-
 
       <AddIncomeModal visible={isAddIncomeModalVisible} onClose={() => setIsAddIncomeModalVisible(false)} onAddIncome={handleAddIncome} />
       <AddExpenseModal visible={isAddExpenseModalVisible} onClose={() => setIsAddExpenseModalVisible(false)} onAddExpense={handleAddExpense} />
 
-      {/* RENDERIZAÇÃO CONDICIONAL DOS MODAIS DE DETALHE E EDIÇÃO - Usando ternário */}
-      {selectedTransactionForDetail ? (
-        <TransactionDetailModal
-          visible={isTransactionDetailModalVisible}
-          transaction={selectedTransactionForDetail}
-          onClose={() => { setIsTransactionDetailModalVisible(false); setSelectedTransactionForDetail(null); }}
-          onDelete={handleDeleteTransaction}
-          onEdit={handleOpenEditModal}
-        />
+      {selectedTransactionForDetail ? ( 
+        <TransactionDetailModal 
+          visible={isTransactionDetailModalVisible} 
+          transaction={selectedTransactionForDetail} 
+          onClose={() => { setIsTransactionDetailModalVisible(false); setSelectedTransactionForDetail(null); }} 
+          onDelete={handleDeleteTransaction} 
+          onEdit={handleOpenEditModal} 
+        /> 
       ) : null}
-      {transactionToEdit ? (
-        <EditTransactionModal
-          visible={isEditModalVisible}
-          transactionToEdit={transactionToEdit}
-          onClose={() => { setIsEditModalVisible(false); setTransactionToEdit(null); }}
-          onSaveEdit={handleSaveEditedTransaction}
-        />
+      {transactionToEdit ? ( 
+        <EditTransactionModal 
+          visible={isEditModalVisible} 
+          transactionToEdit={transactionToEdit} 
+          onClose={() => { setIsEditModalVisible(false); setTransactionToEdit(null); }} 
+          onSaveEdit={handleSaveEditedTransaction} 
+        /> 
       ) : null}
 
       <CartaoDetailModal visible={isCartaoDetailModalVisible} onClose={() => setIsCartaoDetailModalVisible(false)} onPagarFaturaPress={handlePagarFaturaPress} creditCardLimit={creditCardLimit} currentCreditCardBill={currentCreditCardBill} />
